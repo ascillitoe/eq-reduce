@@ -56,49 +56,86 @@ app = dash.Dash(__name__, suppress_callback_exceptions=True,external_stylesheets
 app.title = "Rapid flowfield estimation with polynomial ridges"
 cache = Cache(app.server, config={"CACHE_TYPE": "SimpleCache"})
 
-# Interface to define deformed airfoil via Hicks-Henne bumps 
-define_bumps = html.Div([
-    dbc.Row([
-        dbc.Col(dcc.Dropdown(id="var-select",
-            options=[
-                {"label": "Pressure coefficient", "value":0},
-                {"label": "Turbulent viscosity", "value":1},
-                {"label": "u velocity", "value":2},
-                {"label": "v velocity", "value":3},
-            ],value=0,placeholder="Pressure coefficient",clearable=False,searchable=False
-            ),width=4
+# Card containing the Interface to define deformed airfoil via Hicks-Henne bumps 
+airfoil_bumps_def = dbc.Container(
+    [
+        dbc.Row(
+            [
+                dbc.Col(dcc.Dropdown(id="var-select",
+                    options=[
+                        {"label": "Pressure coefficient", "value":0},
+                        {"label": "Turbulent viscosity", "value":1},
+                        {"label": "u velocity", "value":2},
+                        {"label": "v velocity", "value":3},
+                    ],value=0,placeholder="Pressure coefficient",clearable=False,searchable=False
+                    ),width=4
+                ),
+                dbc.Col(dbc.Button("Add Bump", id="add-bump", color="primary", n_clicks=0),width=2)
+            ],align='center',justify='start'
         ),
-        dbc.Col(dbc.Button("Add Bump", id="add-bump", color="primary", n_clicks=0),width=2),
-        dbc.Col(dbc.Button("Compute Flowfield", id="compute-flowfield", color="primary"),width=3),
-        dbc.Col(dbc.Spinner(html.Div(id='flowfield-finished'),color="primary"),width=1)
-    ],justify="start",align="center"),
-    html.Div(id='slider-container', children=[]),
-])
+        dbc.Row(dbc.Col(html.Div(id='slider-container', children=[])))
+    ] 
+)
+
+# The airfoil plot
+airfoil_plot = dcc.Graph(id="airfoil-plot")
+
+# Airfoil definitions card
+airfoil_definitions_card = dbc.Card(
+    [
+        dbc.CardHeader("Airfoil definition"),
+        dbc.CardBody(
+            dbc.Row(
+                [
+                    dbc.Col(airfoil_bumps_def,width=4),
+                    dbc.Col(airfoil_plot, width=5)
+                ]
+            )
+        )
+    ]
+)
+                   
+# point information card
+point_info_card = dbc.Card(
+    [
+        dbc.CardHeader("Sufficient summary plot"),
+        dbc.CardBody(
+            [
+                dcc.Graph(id="summary-plot"),
+                dcc.Graph(id="Wproject-plot")
+            ]
+        )
+    ]
+)
+
+# flowfield plot card
+flowfield_card = dbc.Card(
+    [
+        dbc.CardHeader("Flowfield estimate"),
+        dbc.CardBody(
+            [
+                dbc.Row(
+                    [
+                        dbc.Col(daq.ToggleSwitch(id='toggle-points', value=False,label={'label':'Toggle approximation points','style':{'font-weight':'bold','font-size':16}}),width='auto'),
+                        dbc.Col(dbc.Button("Compute Flowfield", id="compute-flowfield", color="primary"),width='auto'),
+                        dbc.Col(dbc.Spinner(html.Div(id='flowfield-finished'),color="primary"),width=1)
+                    ],justify='start',align='center'
+                ),
+#                dbc.Row(dbc.Col(dcc.Markdown("Click on point to show it's *sufficient summary plot* or *inactive subspace*",style={'text-align':'center'}))),
+                dbc.Row(dbc.Col(dcc.Graph(id="flowfield-plot",style={'height': '60vh'})))
+            ]
+        )
+    ]
+)
 
 # The overall app layout
 app.layout = dbc.Container(
     [
-        dbc.Row(
-            [   
-                dbc.Col(define_bumps,width=4),
-                dbc.Col(dcc.Graph(id="airfoil-plot"), width=5)
-            ]
-        ),
+        airfoil_definitions_card,
         dbc.Row(
             [
-                dbc.Col(
-                    [
-                        dbc.Row(dbc.Col(dcc.Graph(id="summary-plot"))),
-                        dbc.Row(dbc.Col(dcc.Graph(id="Wproject-plot")))
-                    ],
-                width=4),
-                dbc.Col(
-                    [
-                        dbc.Row(dbc.Col(daq.ToggleSwitch(id='toggle-points', value=False,label={'label':'Toggle approximation points','style':{'font-weight':'bold','font-size':16}}))),
-                        dbc.Row(dbc.Col(dcc.Markdown("Click on point to show it's *sufficient summary plot* or *inactive subspace*",style={'text-align':'center'}))),
-                        dbc.Row(dbc.Col(dcc.Graph(id="flowfield-plot",style={'height': '60vh'})))
-                    ],
-                width=8)
+                dbc.Col(point_info_card,width=4),
+                dbc.Col(flowfield_card,width=8)
             ]
         ),
     # dcc.Store inside the app that stores the intermediate value
@@ -119,6 +156,17 @@ def compute_flowfield(design_vec,var):
 ###################################################################
 # Utilities to specify bumps and plot airfoils
 ###################################################################
+# Simple callback to disable limit number of bumps added
+@app.callback(
+    Output('add-bump','disabled'),
+    Input('add-bump','n_clicks'))
+def limit_bumps(n_clicks):
+    max_bumps=4
+    if n_clicks < max_bumps-1:
+        return False
+    else:
+        return True
+
 # callback to define bump properties (new one each time add bump is pressed)
 @app.callback(
     Output('slider-container', 'children'),
@@ -129,7 +177,7 @@ def define_bump(n_clicks, children):
         [
             dbc.Col(
                 dbc.Form([
-                    dbc.Label('Surface',html_for='select-surface'),
+#                    dbc.Label('Surface',html_for='select-surface'),
                     dbc.Select(
                         id={
                             'type':'select-surface',
@@ -281,7 +329,8 @@ def make_flowfield(n_clicks,airfoil_data,var,show_points):
     prevent_initial_call=True)
 def display_click_data(clickData,airfoil_data,var):
     # Sufficient summary plot
-    layout1={"xaxis": {"title": 'W^Tx'}, "yaxis": {"title": var_name[var]}}
+    layout1={"xaxis": {"title": 'W^Tx'}, "yaxis": {"title": var_name[var]},'margin':{'t':0,'r':0,'l':0,'b':60}}
+
     fig1 = go.Figure(layout=layout1)
     # W projection plot
     layout2={'margin':dict(t=0,r=0,l=0,b=0,pad=0),'showlegend':False,"xaxis": {"title": 'x/C'}, "yaxis": {"title": 'y/C'},
