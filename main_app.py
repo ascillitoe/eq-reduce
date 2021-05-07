@@ -12,7 +12,7 @@ import numpy as np
 import pyvista as pv
 import equadratures as eq
 from joblib import Parallel, delayed, cpu_count
-from utils import deform_airfoil, eval_poly, standardise
+from utils import deform_airfoil, eval_poly, standardise, get_samples_constraining_active_coordinates, get_airfoils
 
 ncores = cpu_count()
 
@@ -94,16 +94,47 @@ airfoil_definitions_card = dbc.Card(
         )
     ]
 )
-                   
+
+# Active subspace (sufficient summary) plot
+summary_plot = dbc.Container(
+    [
+        dcc.Graph(id="summary-plot"),
+        dcc.Graph(id="Wproject-plot")
+    ]
+)
+
+# Inactive subspace plot (sampling inactive subspace with hit and run)
+inactive_plot = dbc.Container(
+    [
+        dbc.Row(
+            [
+                dbc.Col(dbc.Label("Number of samples"),width=3),
+                dbc.Col(dbc.Input(id='nsamples',type="number", min=10, max=1000, step=10,value=10),width=3),
+                dbc.Col(dbc.Spinner(html.Div(id='samples-finished'),color="primary"),width=2)
+            ],align='center',justify='start'
+        ),
+        dbc.Row(
+            [
+                dbc.Col(daq.ToggleSwitch(id='toggle-samples', value=False,label={'label':'Show samples','style':{'font-weight':'bold','font-size':16}}),width='auto'),
+                dbc.Col(daq.ToggleSwitch(id='toggle-stats', value=True,label={'label':'Show two sigma bounds','style':{'font-weight':'bold','font-size':16}}),width='auto'),
+
+            ]
+        ),
+        dbc.Row(dbc.Col(dcc.Graph(id="inactive-plot")))
+    ]
+)
+
 # point information card
 point_info_card = dbc.Card(
     [
-        dbc.CardHeader("Sufficient summary plot"),
+        dbc.CardHeader('Local ridge information'),
         dbc.CardBody(
-            [
-                dcc.Graph(id="summary-plot"),
-                dcc.Graph(id="Wproject-plot")
-            ]
+            dbc.Tabs(
+                [
+                    dbc.Tab(summary_plot, label="Active subspace"),
+                    dbc.Tab(inactive_plot, label="Inactive subspace"),
+                ]
+            )
         )
     ]
 )
@@ -121,7 +152,6 @@ flowfield_card = dbc.Card(
                         dbc.Col(dbc.Spinner(html.Div(id='flowfield-finished'),color="primary"),width=1)
                     ],justify='start',align='center'
                 ),
-#                dbc.Row(dbc.Col(dcc.Markdown("Click on point to show it's *sufficient summary plot* or *inactive subspace*",style={'text-align':'center'}))),
                 dbc.Row(dbc.Col(dcc.Graph(id="flowfield-plot",style={'height': '60vh'})))
             ]
         )
@@ -327,7 +357,7 @@ def make_flowfield(n_clicks,airfoil_data,var,show_points):
     Input('airfoil-data','data'),
     Input('var-select', 'value'),
     prevent_initial_call=True)
-def display_click_data(clickData,airfoil_data,var):
+def display_active_plot(clickData,airfoil_data,var):
     # Sufficient summary plot
     layout1={"xaxis": {"title": 'W^Tx'}, "yaxis": {"title": var_name[var]},'margin':{'t':0,'r':0,'l':0,'b':60}}
 
@@ -398,11 +428,59 @@ def display_click_data(clickData,airfoil_data,var):
             # Annotation
             fig2.add_annotation(x=x_bumps[3],y=ys[3]+ws[3],text='Deformations leading to increased W^Tx',xanchor='left',ax=50,ay=-120,font={'size':14,'color':'LightSkyBlue'},valign='top',showarrow=True,arrowhead=3,arrowsize=2,arrowcolor='LightSkyBlue')
 
-
     return fig1, fig2
+
+###################################################################
+# Inactive plot
+###################################################################
+@app.callback(
+    Output('inactive-plot', 'figure'),
+    Output("samples-finished", "children"),
+    Input('flowfield-plot', 'clickData'),
+    Input('airfoil-data','data'),
+    Input('var-select', 'value'),
+    Input('nsamples', 'value'),
+    Input('toggle-samples','value'),
+    Input('toggle-stats','value'),
+    prevent_initial_call=True)
+def display_inactive_plot(clickData,airfoil_data,var,nsamples,plot_samples,plot_stats):
+    layout={'margin':dict(t=0,r=0,l=0,b=0,pad=0),'showlegend':False,"xaxis": {"title": 'x/C'}, "yaxis": {"title": 'y/C'},
+            'paper_bgcolor':'white','plot_bgcolor':'white'}
+    fig = go.Figure(layout=layout)
+    fig.update_xaxes(title='x/c',range=[-0.02,1.02],showgrid=True, zeroline=False, visible=True,gridcolor='rgba(0,0,0,0.2)',showline=False,linecolor='black')
+    fig.update_yaxes(scaleanchor = "x", scaleratio = 1, showgrid=False, showticklabels=False, zeroline=False, visible=False)
+    fig.add_trace(go.Scatter(x=base_airfoil[:,0],y=base_airfoil[:,1],mode='lines',line_width=4,line_color='black'))
+
+    if clickData is not None:
+        pointdata = clickData['points'][0]
+        if "pointIndex" in pointdata: #check click event corresponds to the point cloud
+            # Get point info
+            n = pointdata['pointIndex']
+
+            # Sample the inactive subspace and return nsamples number of design vectors
+            w = W[pts][n,var,:,:]
+            Xsamples = get_samples_constraining_active_coordinates(w, nsamples, np.array([0]))
+            
+            # Get the airfoil coordinates from the design vectors
+            y_p, y_s = get_airfoils(base_airfoil,Xsamples) 
+        
+        # Plot the samples
+        if plot_samples:
+            opacity = min(0.2,float(10/nsamples))
+            for s in range(nsamples):
+                fig.add_trace(go.Scatter(x=base_airfoil[:,0],y=y_p[:,s],mode='lines',line_width=1,line_color='grey',opacity=opacity))
+                fig.add_trace(go.Scatter(x=base_airfoil[:,0],y=y_s[:,s],mode='lines',line_width=1,line_color='grey',opacity=opacity))
+        if plot_stats: 
+            s_mean = np.mean(y_s,axis=1); p_mean = np.mean(y_p,axis=1)
+            s_std = 1.96*np.std(y_s,axis=1); p_std = 1.96*np.std(y_p,axis=1)
+            fig.add_trace(go.Scatter(x=base_airfoil[:,0],y=p_mean-p_std,mode='lines',line_width=2,line_color='LightSkyBlue',opacity=0.1))
+            fig.add_trace(go.Scatter(x=base_airfoil[:,0],y=p_mean+p_std,mode='lines',line_width=2,line_color='LightSkyBlue',opacity=0.1,
+                fill='tonexty',fillcolor='rgba(135,206,250,0.6)'))
+            fig.add_trace(go.Scatter(x=base_airfoil[:,0],y=s_mean-s_std,mode='lines',line_width=2,line_color='LightSkyBlue',opacity=0.1))
+            fig.add_trace(go.Scatter(x=base_airfoil[:,0],y=s_mean+s_std,mode='lines',line_width=2,line_color='LightSkyBlue',opacity=0.1,
+                fill='tonexty',fillcolor='rgba(135,206,250,0.6)'))
+
+    return fig, None
 
 if __name__ == '__main__':
     app.run_server(debug=True)
-
-# TODO:
-# 4) Tabs to switch between summary plot and inactive subspace

@@ -1,4 +1,5 @@
 import numpy as np
+import scipy as sp
 import equadratures as eq
 from copy import deepcopy
 import time
@@ -80,6 +81,38 @@ def deform_airfoil(airfoil,xs,amps,surfs):
 
     return deformed_airfoil, design_vec/scale
 
+def get_airfoils(base_airfoil,Xsamples):
+    nsamples = Xsamples.shape[0]
+    scale = 0.005 #factor to rescale x vectors from eq by
+    newscale = 2.0 #factor to scale new designs' delta's by (for easy viz)
+    # Split airfoil coords into pressure and suction
+    base_airfoil_p = base_airfoil[0:128]
+    base_airfoil_s = base_airfoil[128:]
+
+    # x locations of bumps (same for suction and pressure surfaces)
+    x_bump = np.linspace(0.05,0.9,25)
+
+    # Loop through all the sample designs
+    npts = base_airfoil_s.shape[0]
+    y_s = np.empty([npts,nsamples])
+    y_p = np.empty([npts,nsamples])
+    for samp, X_design in enumerate(Xsamples):
+        # Extract the suction and pressure bump amplitudes (beta's) from the design vector
+        beta_p = scale*X_design[0::2]
+        beta_s = scale*X_design[1::2]
+    
+        # Apply the bump functions at each x
+        y_s_tmp = deepcopy(base_airfoil_s[:,1])
+        y_p_tmp = deepcopy(base_airfoil_p[:,1])
+        for j in range(25):
+            y_s_tmp += newscale*beta_s[j]*b(base_airfoil_s[:,0],x_bump[j])
+            y_p_tmp -= newscale*beta_p[j]*b(base_airfoil_p[:,0],x_bump[j])
+    
+        y_s[:,samp] = y_s_tmp
+        y_p[:,samp] = y_p_tmp
+
+    return y_p, y_s
+
 def eval_poly(x,lower,upper,coeffs,W):
     mybasis = eq.Basis("total-order")
     param = eq.Parameter(distribution='uniform', lower=lower,upper=upper,order=2)
@@ -89,9 +122,132 @@ def eval_poly(x,lower,upper,coeffs,W):
     ypred = newpoly.get_polyfit(u)
     return ypred
 
+#########################################################
+# NOTE - All methods below are adapted from equadratures
+#########################################################
 def standardise(X):
     if X.ndim == 1: X = X.reshape(-1,1)
     Xmin = np.min(X,axis=0)
     Xmax = np.max(X,axis=0)
     Xtrans = 2.0 * ( (X[:,:]-Xmin)/(Xmax - Xmin) ) - 1.0
     return Xtrans
+
+def null_space(A, rcond=None):
+    '''
+    null space method adapted from scipy.
+    '''
+    u, s, vh = sp.linalg.svd(A, full_matrices=True)
+    M, N = u.shape[0], vh.shape[1]
+    if rcond is None:
+        rcond = np.finfo(s.dtype).eps * max(M, N)
+    tol = np.amax(s) * rcond
+    num = np.sum(s > tol, dtype=int)
+    Q = vh[num:,:].T.conj()
+    return Q
+
+def get_samples_constraining_active_coordinates(W, inactive_samples, active_coordinates):
+    """
+
+    A hit and run type sampling strategy for generating samples at a given coordinate in the active subspace
+    by varying its coordinates along the inactive subspace.
+
+    :param Subspaces self:
+        An instance of the Subspaces object.
+    :param int inactive_samples:
+        The number of inactive samples required.
+    :param numpy.ndarray active_coordiantes:
+        The active subspace coordinates.
+
+    :return:
+        **X**: An numpy.ndarray of the full-space coordinates.
+
+    **Note:**
+    This routine has been adapted from Paul Constantine's hit_and_run() function; see reference below.
+
+    Constantine, P., Howard, R., Glaws, A., Grey, Z., Diaz, P., Fletcher, L., (2016) Python Active-Subspaces Utility Library. Journal of Open Source Software, 1(5), 79. `Paper <http://joss.theoj.org/papers/10.21105/joss.00079>`__.
+
+    """
+    y = active_coordinates
+    N = inactive_samples
+    W1 = W # active_subspace is provided
+    W2 = null_space(W1.T) #inactive subspace
+    M = np.hstack([W1,W2])
+
+    m, n = W1.shape
+    s = np.dot(W1, y).reshape((m, 1))
+    normW2 = np.sqrt(np.sum(np.power(W2, 2), axis=1)).reshape((m, 1))
+    A = np.hstack((np.vstack((W2, -W2.copy())), np.vstack((normW2, normW2.copy()))))
+    b = np.vstack((1 - s, 1 + s)).reshape((2 * m, 1))
+    c = np.zeros((m - n + 1, 1))
+    c[-1] = -1.0
+    # print()
+
+    zc = linear_program_ineq(c, -A, -b)
+    z0 = zc[:-1].reshape((m - n, 1))
+
+    # define the polytope A >= b
+    s = np.dot(W1, y).reshape((m, 1))
+    A = np.vstack((W2, -W2))
+    b = np.vstack((-1 - s, -1 + s)).reshape((2 * m, 1))
+
+    # tolerance
+    ztol = 1e-6
+    eps0 = ztol / 4.0
+
+    Z = np.zeros((N, m - n))
+    for i in range(N):
+
+        # random direction
+        bad_dir = True
+        count, maxcount = 0, 50
+        while bad_dir:
+            d = np.random.normal(size=(m - n, 1))
+            bad_dir = np.any(np.dot(A, z0 + eps0 * d) <= b)
+            count += 1
+            if count >= maxcount:
+                Z[i:, :] = np.tile(z0, (1, N - i)).transpose()
+                yz = np.vstack([np.repeat(y[:, np.newaxis], N, axis=1), Z.T])
+                return np.dot(M, yz).T
+
+        # find constraints that impose lower and upper bounds on eps
+        f, g = b - np.dot(A, z0), np.dot(A, d)
+
+        # find an upper bound on the step
+        min_ind = np.logical_and(g <= 0, f < -np.sqrt(np.finfo(np.float).eps))
+        eps_max = np.amin(f[min_ind] / g[min_ind])
+
+        # find a lower bound on the step
+        max_ind = np.logical_and(g > 0, f < -np.sqrt(np.finfo(np.float).eps))
+        eps_min = np.amax(f[max_ind] / g[max_ind])
+
+        # randomly sample eps
+        eps1 = np.random.uniform(eps_min, eps_max)
+
+        # take a step along d
+        z1 = z0 + eps1 * d
+        Z[i, :] = z1.reshape((m - n,))
+
+        # update temp var
+        z0 = z1.copy()
+
+    yz = np.vstack([np.repeat(y[:, np.newaxis], N, axis=1), Z.T])
+    return np.dot(M, yz).T
+
+def linear_program_ineq(c, A, b):
+    c = c.reshape((c.size,))
+    b = b.reshape((b.size,))
+
+    # make unbounded bounds
+    bounds = []
+    for i in range(c.size):
+        bounds.append((None, None))
+
+    A_ub, b_ub = -A, -b
+    res = sp.optimize.linprog(c, A_ub=A_ub, b_ub=b_ub, bounds=bounds, options={"disp": False}, method='simplex')
+    if res.success:
+        return res.x.reshape((c.size, 1))
+    else:
+        np.savez('bad_scipy_lp_ineq_{:010d}'.format(np.random.randint(int(1e9))),
+                 c=c, A=A, b=b, res=res)
+        raise Exception('Scipy did not solve the LP. Blame Scipy.')
+
