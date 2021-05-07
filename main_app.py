@@ -42,7 +42,6 @@ lowers = np.load('lowers.npy')
 uppers = np.load('uppers.npy')
 W = np.load('W.npy')
 var_name = ['Cp','nut/nu','u/U','v/U']
-var = 0 # TODO add this as option
 
 # Load training data to plot on summary plots
 X = np.load('X.npy')
@@ -60,8 +59,17 @@ cache = Cache(app.server, config={"CACHE_TYPE": "SimpleCache"})
 # Interface to define deformed airfoil via Hicks-Henne bumps 
 define_bumps = html.Div([
     dbc.Row([
+        dbc.Col(dcc.Dropdown(id="var-select",
+            options=[
+                {"label": "Pressure coefficient", "value":0},
+                {"label": "Turbulent viscosity", "value":1},
+                {"label": "u velocity", "value":2},
+                {"label": "v velocity", "value":3},
+            ],value=0,placeholder="Pressure coefficient",clearable=False,searchable=False
+            ),width=4
+        ),
         dbc.Col(dbc.Button("Add Bump", id="add-bump", color="primary", n_clicks=0),width=2),
-        dbc.Col(dbc.Button("Compute Flowfield", id="compute-flowfield", color="primary"),width=2),
+        dbc.Col(dbc.Button("Compute Flowfield", id="compute-flowfield", color="primary"),width=3),
         dbc.Col(dbc.Spinner(html.Div(id='flowfield-finished'),color="primary"),width=1)
     ],justify="start",align="center"),
     html.Div(id='slider-container', children=[]),
@@ -73,18 +81,23 @@ app.layout = dbc.Container(
         dbc.Row(
             [   
                 dbc.Col(define_bumps,width=4),
-                dbc.Col(dcc.Graph(id="airfoil-plot"), width=8)
+                dbc.Col(dcc.Graph(id="airfoil-plot"), width=5)
             ]
         ),
         dbc.Row(
             [
-                dbc.Col(dcc.Graph(id="summary-plot"),width=4),
-                dbc.Col(dbc.FormGroup(
+                dbc.Col(
                     [
-                    daq.ToggleSwitch(id='toggle-points', value=False,label="Toggle approximation points"),
-#                    dbc.Checklist(options=[{"label": "Toggle approximation points", "value": True}],value=[],id="toggle-points",switch=True),
-                    dcc.Graph(id="flowfield-plot",style={'height': '65vh'})
-                    ]),
+                        dbc.Row(dbc.Col(dcc.Graph(id="summary-plot"))),
+                        dbc.Row(dbc.Col(dcc.Graph(id="Wproject-plot")))
+                    ],
+                width=4),
+                dbc.Col(
+                    [
+                        dbc.Row(dbc.Col(daq.ToggleSwitch(id='toggle-points', value=False,label={'label':'Toggle approximation points','style':{'font-weight':'bold','font-size':16}}))),
+                        dbc.Row(dbc.Col(dcc.Markdown("Click on point to show it's *sufficient summary plot* or *inactive subspace*",style={'text-align':'center'}))),
+                        dbc.Row(dbc.Col(dcc.Graph(id="flowfield-plot",style={'height': '60vh'})))
+                    ],
                 width=8)
             ]
         ),
@@ -99,7 +112,7 @@ app.layout = dbc.Container(
 ###################################################################
 # This function is moderately time consuming so memoize it
 @cache.memoize(timeout=600)
-def compute_flowfield(design_vec):
+def compute_flowfield(design_vec,var):
     ypred = np.array(Parallel(n_jobs=ncores,verbose=1,)(delayed(eval_poly)(design_vec,lowers[pt,var],uppers[pt,var],coeffs[pt,var,:],W[pt,var,:,:]) for pt in pts))
     return ypred
 
@@ -135,7 +148,7 @@ def define_bump(n_clicks, children):
 
             dbc.Col(
                 dbc.Form([
-                    dbc.Label('Bump location (x/c)',html_for='slider-x'),
+                    dbc.Label('Bump location (x/C)',html_for='slider-x'),
                     dcc.Slider(
                         id={
                             'type':'slider-x',
@@ -187,10 +200,12 @@ def define_bump(n_clicks, children):
 ###################################################################
 # Create initial baseline airfoil fig
 def create_airfoil_plot():
-    layout = {"xaxis": {"title": 'x'}, "yaxis": {"title": 'y'}}
+    layout = {"xaxis": {"title": 'x/C'}, "yaxis": {"title": 'y/C'},'margin':{'t':0,'r':0,'l':0,'b':0}}
     data = go.Scatter(x=base_airfoil[:,0],y=base_airfoil[:,1],mode='lines',name='NACA0012',line_width=4,line_color='black')
     fig = go.Figure(data=data, layout=layout)
-    fig.update_yaxes(scaleanchor = "x", scaleratio = 1)
+    fig.update_xaxes(range=[-0.01,1.01])
+    fig.update_yaxes(range=[-0.102,0.102]) #scaleratio and scaleanchor overridden by this annoyingly (have to hardcode width and height for now)
+    fig.update_layout(height=300,width=300*(1/0.2))
     return fig
 
 # callback to create aerofoil plots
@@ -204,6 +219,7 @@ def make_graph(xs,amps,surfs):
     fig = create_airfoil_plot()
     deformed_airfoil, design_vec = deform_airfoil(base_airfoil,xs,amps,surfs)
     fig.add_trace(go.Scatter(x=deformed_airfoil[:,0],y=deformed_airfoil[:,1],mode='lines',name='Deformed',line_width=4,line_color='blue'))
+
     return fig,{'design-vec':design_vec,'airfoil-x':deformed_airfoil[:,0].tolist(),'airfoil-y':deformed_airfoil[:,1].tolist()}
 
 ###################################################################
@@ -215,19 +231,21 @@ def make_graph(xs,amps,surfs):
     Output("flowfield-finished", "children"),
     Input("compute-flowfield", "n_clicks"),
     Input('airfoil-data', 'data'),
+    Input('var-select', 'value'),
     Input('toggle-points','value'),
     prevent_initial_call=True)
-def make_flowfield(n_clicks,airfoil_data,show_points):
+def make_flowfield(n_clicks,airfoil_data,var,show_points):
     # Parse data
     design_vec = airfoil_data['design-vec']
     airfoil_x  = airfoil_data['airfoil-x']
     airfoil_y  = airfoil_data['airfoil-y']
     
     # Setup fig
-    layout={'clickmode':'event+select','margin':dict(t=10),'showlegend':False,"xaxis": {"title": 'x'}, "yaxis": {"title": 'y'},
+    layout={'clickmode':'event+select','margin':dict(t=0,r=0,l=0,b=0,pad=0),'showlegend':False,"xaxis": {"title": 'x/C'}, "yaxis": {"title": 'y/C'},
             'paper_bgcolor':'white','plot_bgcolor':'white'}
-
     fig = go.Figure(layout=layout)
+
+    # Plot airfoil
     fig.add_trace(go.Scatter(x=airfoil_x,y=airfoil_y,mode='lines',name='Deformed',line_width=8,line_color='blue',fill='tozeroy',fillcolor='rgba(0, 0, 255, 1.0)'))
 
     #fig.update_xaxes(range=[-1.12844, 1.830583])
@@ -237,7 +255,7 @@ def make_flowfield(n_clicks,airfoil_data,show_points):
     # Contour plot (if button has just been pressed)
     changed_id = [p['prop_id'] for p in dash.callback_context.triggered][0]
     if 'compute-flowfield' in changed_id:
-        ypred = compute_flowfield(design_vec)
+        ypred = compute_flowfield(design_vec,var)
         fig.add_trace(go.Contour(x=x,y=y,z=ypred.reshape(len(x),len(y)),transpose=True,colorbar=dict(title=var_name[var], titleside='right'), contours=dict(
             start=np.nanmin(ypred),
             end=np.nanmax(ypred),
@@ -252,27 +270,42 @@ def make_flowfield(n_clicks,airfoil_data,show_points):
     return fig, None
 
 ###################################################################
-# Sufficient summary plot 
+# Sufficient summary plot (and W project over airfoil plot)
 ###################################################################
 @app.callback(
     Output('summary-plot', 'figure'),
+    Output('Wproject-plot', 'figure'),
     Input('flowfield-plot', 'clickData'),
     Input('airfoil-data','data'),
+    Input('var-select', 'value'),
     prevent_initial_call=True)
-def display_click_data(clickData,airfoil_data):
-    layout={"xaxis": {"title": 'W^Tx'}, "yaxis": {"title": var_name[var]}}
-    fig = go.Figure(layout=layout)
+def display_click_data(clickData,airfoil_data,var):
+    # Sufficient summary plot
+    layout1={"xaxis": {"title": 'W^Tx'}, "yaxis": {"title": var_name[var]}}
+    fig1 = go.Figure(layout=layout1)
+    # W projection plot
+    layout2={'margin':dict(t=0,r=0,l=0,b=0,pad=0),'showlegend':False,"xaxis": {"title": 'x/C'}, "yaxis": {"title": 'y/C'},
+            'paper_bgcolor':'white','plot_bgcolor':'white'}
+    fig2 = go.Figure(layout=layout2)
+    fig2.update_xaxes(title='x/c',range=[-0.02,1.02],showgrid=True, zeroline=False, visible=True,gridcolor='rgba(0,0,0,0.2)',showline=False,linecolor='black')
+    fig2.update_yaxes(scaleanchor = "x", scaleratio = 1, showgrid=False, showticklabels=False, zeroline=False, visible=False)
+    fig2.add_trace(go.Scatter(x=base_airfoil[:,0],y=base_airfoil[:,1],mode='lines',line_width=4,line_color='black'))
+
     if clickData is not None:
         pointdata = clickData['points'][0]
         if "pointIndex" in pointdata: #check click event corresponds to the point cloud
+            # Get point info
             n = pointdata['pointIndex']
             xn = pointdata['x']
             yn = pointdata['y']
+            w = W[pts][n,var,:,:]
 
+            # Summary plot
+            ##############
             # Plot training design
             Yn = Y[n,:,var]
-            u = (X @ W[pts][n,var,:,:]).flatten()
-            fig.add_trace(go.Scatter(x=u,y=Yn,mode='markers',name='Training designs',
+            u = (X @ w).flatten()
+            fig1.add_trace(go.Scatter(x=u,y=Yn,mode='markers',name='Training designs',
                 marker=dict(color='LightSkyBlue',size=15,opacity=0.5,line=dict(color='black',width=1))
             ))
 
@@ -287,22 +320,40 @@ def display_click_data(clickData,airfoil_data):
             # Plot poly
             u_poly = np.linspace(np.min(u)-0.25,np.max(u)+0.25,50)
             Y_poly = newpoly.get_polyfit(u_poly.reshape(-1,1))
-            fig.add_trace(go.Scatter(x=u_poly,y=Y_poly.squeeze(),mode='lines',name='Ridge approximation',line_width=4,line_color='black' ))
+            fig1.add_trace(go.Scatter(x=u_poly,y=Y_poly.squeeze(),mode='lines',name='Ridge approximation',line_width=4,line_color='black' ))
 
             # Plot deformed design
-            u_design = design_vec @ W[pts][n,var,:,:]
+            u_design = design_vec @ w
             Y_design = newpoly.get_polyfit(u_design)
-            fig.add_trace(go.Scatter(x=u_design.squeeze(),y=Y_design.squeeze(),mode='markers',name='Deformed design',
+            fig1.add_trace(go.Scatter(x=u_design.squeeze(),y=Y_design.squeeze(),mode='markers',name='Deformed design',
                 marker=dict(symbol='circle-open',color='firebrick',size=25,line=dict(width=5))
             ))
-            print(Y_design)
+            
+            # W projection plot
+            ###################
+            # Split into suction and pressure
+            scale = 0.2
+            wp = -w[0::2,0]*scale
+            ws = w[1::2,0]*scale
+            x_bumps = np.linspace(0.05,0.9,25)
+            airfoilp = base_airfoil[:128,:]
+            airfoils = base_airfoil[128:,:]
+            yp = np.interp(x_bumps, airfoilp[::-1,0], airfoilp[::-1,1])
+            ys = np.interp(x_bumps, airfoils[:,0], airfoils[:,1])
+            # Pressure
+            fig2.add_trace(go.Scatter(x=x_bumps,y=yp,mode='lines',line_width=1,line_color='black'))  # plot hidden line to use with fill=tonexty below
+            fig2.add_trace(go.Scatter(x=x_bumps,y=yp+wp,mode='lines',line_width=4,line_color='LightSkyBlue',fill='tonexty',fillcolor='rgba(135,206,250, 0.3)'))
+            # Suction
+            fig2.add_trace(go.Scatter(x=x_bumps,y=ys,mode='lines',line_width=1,line_color='black'))  # plot hidden line to use with fill=tonexty below
+            fig2.add_trace(go.Scatter(x=x_bumps,y=ys+ws,mode='lines',line_width=4,line_color='LightSkyBlue',fill='tonexty',fillcolor='rgba(135,206,250, 0.3)'))
+            # Annotation
+            fig2.add_annotation(x=x_bumps[3],y=ys[3]+ws[3],text='Deformations leading to increased W^Tx',xanchor='left',ax=50,ay=-120,font={'size':14,'color':'LightSkyBlue'},valign='top',showarrow=True,arrowhead=3,arrowsize=2,arrowcolor='LightSkyBlue')
 
-    return fig
+
+    return fig1, fig2
 
 if __name__ == '__main__':
     app.run_server(debug=True)
 
 # TODO:
-# 1) dropdown to select var
-# 3) Have figure below summary plot with W projected over aerofoil to tell user how to deform the aerofoil
 # 4) Tabs to switch between summary plot and inactive subspace
