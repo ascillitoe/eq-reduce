@@ -12,7 +12,7 @@ import numpy as np
 import pyvista as pv
 import equadratures as eq
 from joblib import Parallel, delayed, cpu_count
-from utils import deform_airfoil, eval_poly, standardise, get_samples_constraining_active_coordinates, get_airfoils
+from utils import deform_airfoil, eval_poly, standardise, get_samples_constraining_active_coordinates, get_airfoils, airfoil_mask
 
 ncores = cpu_count()
 
@@ -41,7 +41,7 @@ coeffs = np.load('coeffs.npy')
 lowers = np.load('lowers.npy')
 uppers = np.load('uppers.npy')
 W = np.load('W.npy')
-var_name = ['Cp','nut/nu','u/U','v/U']
+var_name = [r'$C_p$',r'$\nu_t/\nu$',r'$u/U_{\infty}$',r'$v/U_{\infty}$']
 
 # Load training data to plot on summary plots
 X = np.load('X.npy')
@@ -52,54 +52,50 @@ Y = np.load('Y.npy')[pts,:,:]
 # Overall app
 ###################################################################
 # Define app
-app = dash.Dash(__name__, suppress_callback_exceptions=True,external_stylesheets=[dbc.themes.SPACELAB, 'https://codepen.io/chriddyp/pen/bWLwgP.css'])
+app = dash.Dash(__name__, suppress_callback_exceptions=True,
+        external_stylesheets=[dbc.themes.SPACELAB, 'https://codepen.io/chriddyp/pen/bWLwgP.css'],
+        external_scripts=["https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?config=TeX-MML-AM_CHTML" ])
 app.title = "Rapid flowfield estimation with polynomial ridges"
 cache = Cache(app.server, config={"CACHE_TYPE": "SimpleCache"})
 
 # Card containing the Interface to define deformed airfoil via Hicks-Henne bumps 
 airfoil_bumps_def = dbc.Container(
     [
-        dbc.Row(
-            [
-                dbc.Col(dcc.Dropdown(id="var-select",
-                    options=[
-                        {"label": "Pressure coefficient", "value":0},
-                        {"label": "Turbulent viscosity", "value":1},
-                        {"label": "u velocity", "value":2},
-                        {"label": "v velocity", "value":3},
-                    ],value=0,placeholder="Pressure coefficient",clearable=False,searchable=False
-                    ),width=4
-                ),
-                dbc.Col(dbc.Button("Add Bump", id="add-bump", color="primary", n_clicks=0),width=2)
-            ],align='center',justify='start'
+        dbc.Row(dbc.Col(dbc.Button("Add Bump", id="add-bump", color="primary", n_clicks=0),width=2),align='center',justify='start'
         ),
-        dbc.Row(dbc.Col(html.Div(id='slider-container', children=[])))
-    ] 
+        dbc.Row(dbc.Col(html.Div(id='slider-container', children=[]))) #The slider-container callback adds an extra row here each time "Add Bump" is pressed
+    ],fluid=True 
 )
 
 # The airfoil plot
-airfoil_plot = dcc.Graph(id="airfoil-plot")
+#fig = create_airfoil_plot()
+layout = {"xaxis": {"title": r'$x/C$'}, "yaxis": {"title": r'$y/C$'},'margin':{'t':0,'r':0,'l':0,'b':0},'autosize':True}
+data = go.Scatter(x=base_airfoil[:,0],y=base_airfoil[:,1],mode='lines',name='NACA0012',line_width=4,line_color='black')
+fig = go.Figure(data=data, layout=layout)
+fig.update_xaxes(range=[-0.01,1.01])
+fig.update_yaxes(range=[-0.102,0.102],scaleanchor='x',scaleratio=1) #scaleratio and scaleanchor overridden by this annoyingly (have to hardcode width and height for now)
+airfoil_plot = html.Div(dcc.Graph(figure=fig,id="airfoil-plot"))#'width':'100%','height':'100%'})
 
 # Airfoil definitions card
 airfoil_definitions_card = dbc.Card(
     [
-        dbc.CardHeader("Airfoil definition"),
+        dbc.CardHeader(dcc.Markdown("**Airfoil definition**")),
         dbc.CardBody(
             dbc.Row(
                 [
-                    dbc.Col(airfoil_bumps_def,width=4),
-                    dbc.Col(airfoil_plot, width=5)
+                    dbc.Col(airfoil_bumps_def,width=5),
+                    dbc.Col(airfoil_plot, width=7)
                 ]
-            )
-        )
-    ]
+            ),
+        )    
+        ],style={'height':'38vh'}
 )
 
 # Active subspace (sufficient summary) plot
 summary_plot = dbc.Container(
     [
-        dcc.Graph(id="summary-plot"),
-        dcc.Graph(id="Wproject-plot")
+        dcc.Graph(id="summary-plot", style={}),#'width':'100%','height':'100%'}),
+        dcc.Graph(id="Wproject-plot",style={})#'width':'100%','height':'100%'})
     ]
 )
 
@@ -127,49 +123,64 @@ inactive_plot = dbc.Container(
 # point information card
 point_info_card = dbc.Card(
     [
-        dbc.CardHeader('Local ridge information'),
+        dbc.CardHeader(dcc.Markdown('**Local ridge information** \(select an approximation point first!)')),
         dbc.CardBody(
             dbc.Tabs(
                 [
                     dbc.Tab(summary_plot, label="Active subspace"),
                     dbc.Tab(inactive_plot, label="Inactive subspace"),
                 ]
-            )
+            ), 
         )
-    ]
+    ], 
 )
 
 # flowfield plot card
 flowfield_card = dbc.Card(
     [
-        dbc.CardHeader("Flowfield estimate"),
+        dbc.CardHeader(dcc.Markdown("**Flowfield estimate**")),
         dbc.CardBody(
             [
                 dbc.Row(
                     [
-                        dbc.Col(daq.ToggleSwitch(id='toggle-points', value=False,label={'label':'Toggle approximation points','style':{'font-weight':'bold','font-size':16}}),width='auto'),
+                        dbc.Col(dcc.Dropdown(id="var-select",
+                            options=[
+                                {"label": "Pressure coefficient", "value":0},
+                                {"label": "Turbulent viscosity", "value":1},
+                                {"label": "u velocity", "value":2},
+                                {"label": "v velocity", "value":3},
+                            ],value=0,placeholder="Pressure coefficient",clearable=False,searchable=False
+                            ),width=4
+                        ),
                         dbc.Col(dbc.Button("Compute Flowfield", id="compute-flowfield", color="primary"),width='auto'),
+                        dbc.Col(daq.ToggleSwitch(id='toggle-points', value=False,label={'label':'Show approximation points','style':{'font-weight':'bold','font-size':16}}),width='auto'),
                         dbc.Col(dbc.Spinner(html.Div(id='flowfield-finished'),color="primary"),width=1)
                     ],justify='start',align='center'
                 ),
-                dbc.Row(dbc.Col(dcc.Graph(id="flowfield-plot",style={'height': '60vh'})))
-            ]
+                dbc.Row(dbc.Col(dcc.Graph(id="flowfield-plot"),width=12))#,style={'width':'100vw'})#style={'height': '60vh'})))
+            ], 
         )
-    ]
+    ], 
 )
+
+tooltips = html.Div([
+        dbc.Tooltip("Add Hicks-Henne bump functions to deform the baseline NACA0012 airfoil", target="add-bump"),
+    ])
 
 # The overall app layout
 app.layout = dbc.Container(
     [
+        #dbc.Row(dbc.Col(airfoil_definitions_card),style={'height':'38vh'}),
         airfoil_definitions_card,
         dbc.Row(
             [
                 dbc.Col(point_info_card,width=4),
                 dbc.Col(flowfield_card,width=8)
-            ]
+            ], style={'height':'58vh'}
         ),
     # dcc.Store inside the app that stores the intermediate value
-    dcc.Store(id='airfoil-data')
+    dcc.Store(id='airfoil-data'),
+    tooltips
     ],
     fluid = True
 )
@@ -248,7 +259,9 @@ def define_bump(n_clicks, children):
 
             dbc.Col( 
                 dbc.Form([
-                    dbc.Label('Bump amplitude',html_for='slider-amp'),
+                    dbc.Label('Bump amplitude',html_for='slider-amp',id="bump-amp-label"),
+                    dbc.Tooltip(f"+ve to deform outwards, -ve to deform inwards", target=f"slider-amp-wrapper-{n_clicks}"),
+                    html.Div(
                     dcc.Slider(
                         id={
                             'type':'slider-amp',
@@ -264,7 +277,7 @@ def define_bump(n_clicks, children):
                             0.01: {'label': '0.01'}
                             },
                         tooltip = { 'always_visible': True, 'placement': 'bottom' }
-                    )
+                    ),id=f"slider-amp-wrapper-{n_clicks}")
                 ])
                 ,width=4
             )
@@ -278,12 +291,12 @@ def define_bump(n_clicks, children):
 ###################################################################
 # Create initial baseline airfoil fig
 def create_airfoil_plot():
-    layout = {"xaxis": {"title": 'x/C'}, "yaxis": {"title": 'y/C'},'margin':{'t':0,'r':0,'l':0,'b':0}}
+    layout = {"xaxis": {"title": r'$x/C$'}, "yaxis": {"title": r'$y/C$'},'margin':{'t':0,'r':0,'l':0,'b':0},'autosize':True}
     data = go.Scatter(x=base_airfoil[:,0],y=base_airfoil[:,1],mode='lines',name='NACA0012',line_width=4,line_color='black')
     fig = go.Figure(data=data, layout=layout)
     fig.update_xaxes(range=[-0.01,1.01])
-    fig.update_yaxes(range=[-0.102,0.102]) #scaleratio and scaleanchor overridden by this annoyingly (have to hardcode width and height for now)
-    fig.update_layout(height=300,width=300*(1/0.2))
+    fig.update_yaxes(range=[-0.102,0.102],scaleanchor='x',scaleratio=1) #scaleratio and scaleanchor overridden by this annoyingly (have to hardcode width and height for now)
+#    fig.update_layout(height=300,width=300*(1/0.2))
     return fig
 
 # callback to create aerofoil plots
@@ -292,12 +305,16 @@ def create_airfoil_plot():
     Output('airfoil-data', 'data'),
     Input({'type': 'slider-x'  , 'index': ALL}, 'value'),
     Input({'type': 'slider-amp', 'index': ALL}, 'value'),
-    Input({'type': 'select-surface', 'index': ALL}, 'value'))
+    Input({'type': 'select-surface', 'index': ALL}, 'value'),
+    )
 def make_graph(xs,amps,surfs):
-    fig = create_airfoil_plot()
     deformed_airfoil, design_vec = deform_airfoil(base_airfoil,xs,amps,surfs)
-    fig.add_trace(go.Scatter(x=deformed_airfoil[:,0],y=deformed_airfoil[:,1],mode='lines',name='Deformed',line_width=4,line_color='blue'))
-
+    #fig.add_trace(go.Scatter(x=deformed_airfoil[:,0],y=deformed_airfoil[:,1],mode='lines',name='Deformed',line_width=4,line_color='blue'))
+    ntraces = len(fig.data)
+    if ntraces == 1: # If only baseline plotted, plot Deformed trace
+        fig.add_trace(go.Scatter(x=deformed_airfoil[:,0],y=deformed_airfoil[:,1],mode='lines',name='Deformed',line_width=4,line_color='blue'))
+    else: # otherwise, update existing trace
+        fig.data[1].y = deformed_airfoil[:,1]
     return fig,{'design-vec':design_vec,'airfoil-x':deformed_airfoil[:,0].tolist(),'airfoil-y':deformed_airfoil[:,1].tolist()}
 
 ###################################################################
@@ -343,6 +360,7 @@ def make_flowfield(n_clicks,airfoil_data,var,show_points):
 
     if show_points: 
         xx,yy = np.meshgrid(x,y,indexing='ij')
+        xx,yy = airfoil_mask(xx,yy,airfoil_x,airfoil_y)
         fig.add_trace(go.Scatter(x=xx.flatten(),y=yy.flatten(),mode='markers',marker_color='black',opacity=0.4,marker_symbol='circle-open',marker_size=6,marker_line_width=2))
        
     return fig, None
@@ -359,14 +377,14 @@ def make_flowfield(n_clicks,airfoil_data,var,show_points):
     prevent_initial_call=True)
 def display_active_plot(clickData,airfoil_data,var):
     # Sufficient summary plot
-    layout1={"xaxis": {"title": 'W^Tx'}, "yaxis": {"title": var_name[var]},'margin':{'t':0,'r':0,'l':0,'b':60}}
+    layout1={"xaxis": {"title": r'$\mathbf{W}^T\mathbf{x}$'}, "yaxis": {"title": var_name[var]},'margin':{'t':0,'r':0,'l':0,'b':60}}
 
     fig1 = go.Figure(layout=layout1)
     # W projection plot
-    layout2={'margin':dict(t=0,r=0,l=0,b=0,pad=0),'showlegend':False,"xaxis": {"title": 'x/C'}, "yaxis": {"title": 'y/C'},
-            'paper_bgcolor':'white','plot_bgcolor':'white'}
+    layout2={'margin':dict(t=0,r=0,l=0,b=0,pad=0),'showlegend':False,"xaxis": {"title": r'$x/C$'}, "yaxis": {"title": r'$y/C$'},
+            'paper_bgcolor':'white','plot_bgcolor':'white'}#,'height':350}
     fig2 = go.Figure(layout=layout2)
-    fig2.update_xaxes(title='x/c',range=[-0.02,1.02],showgrid=True, zeroline=False, visible=True,gridcolor='rgba(0,0,0,0.2)',showline=False,linecolor='black')
+    fig2.update_xaxes(title=r'$x/C$',range=[-0.02,1.02],showgrid=True, zeroline=False, visible=True,gridcolor='rgba(0,0,0,0.2)',showline=False,linecolor='black')
     fig2.update_yaxes(scaleanchor = "x", scaleratio = 1, showgrid=False, showticklabels=False, zeroline=False, visible=False)
     fig2.add_trace(go.Scatter(x=base_airfoil[:,0],y=base_airfoil[:,1],mode='lines',line_width=4,line_color='black'))
 
@@ -447,7 +465,7 @@ def display_inactive_plot(clickData,airfoil_data,var,nsamples,plot_samples,plot_
     layout={'margin':dict(t=0,r=0,l=0,b=0,pad=0),'showlegend':False,"xaxis": {"title": 'x/C'}, "yaxis": {"title": 'y/C'},
             'paper_bgcolor':'white','plot_bgcolor':'white'}
     fig = go.Figure(layout=layout)
-    fig.update_xaxes(title='x/c',range=[-0.02,1.02],showgrid=True, zeroline=False, visible=True,gridcolor='rgba(0,0,0,0.2)',showline=False,linecolor='black')
+    fig.update_xaxes(title=r'$x/C$',range=[-0.02,1.02],showgrid=True, zeroline=False, visible=True,gridcolor='rgba(0,0,0,0.2)',showline=False,linecolor='black')
     fig.update_yaxes(scaleanchor = "x", scaleratio = 1, showgrid=False, showticklabels=False, zeroline=False, visible=False)
     fig.add_trace(go.Scatter(x=base_airfoil[:,0],y=base_airfoil[:,1],mode='lines',line_width=4,line_color='black'))
 
@@ -484,3 +502,8 @@ def display_inactive_plot(clickData,airfoil_data,var,nsamples,plot_samples,plot_
 
 if __name__ == '__main__':
     app.run_server(debug=True)
+
+# TODO:
+#2) pretyify!
+#3) instructions etc
+#4) go live!

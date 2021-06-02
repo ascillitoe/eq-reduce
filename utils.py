@@ -251,3 +251,29 @@ def linear_program_ineq(c, A, b):
                  c=c, A=A, b=b, res=res)
         raise Exception('Scipy did not solve the LP. Blame Scipy.')
 
+
+def airfoil_mask(xx,yy,airfoil_x,airfoil_y):
+    tol = 5e-3# remove points if within this tolerance of surface
+    nx,ny = xx.shape
+    airfoil_x_p = airfoil_x[0:128]
+    airfoil_y_p = airfoil_y[0:128]
+    airfoil_x_s = airfoil_x[128:]
+    airfoil_y_s = airfoil_y[128:]
+ 
+    # Find i indices within airfoil range
+    x = xx[:,0]
+    idx = np.where((x>=0.0) & (x<=1.0))[0]
+
+    # Loop through i indices within airfoil range, set as NaN if "within" airfoil solid region
+    for i in idx:
+        # Find suction and pressure coords at this given x coord
+        y_p = np.interp(x[i],airfoil_x_p[::-1],airfoil_y_p[::-1])
+        y_s = np.interp(x[i],airfoil_x_s,airfoil_y_s)
+
+        # For all j at this i, set to NaN if >y_p and <y_s (only need to set yy to nan to hide on scatter plot) TODO - this could be vectorised further for speed...
+        y = yy[i,:]
+        idx2 = np.where((y>y_p-tol)&(y<y_s+tol))
+        yy[i,idx2] = np.nan
+
+    return xx,yy
+
