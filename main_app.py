@@ -1,4 +1,5 @@
-import dash
+i    airfoil_x  = np.hstack(airfoil_x[-1],airfoil_x)
+mport dash
 import dash_core_components as dcc
 import dash_html_components as html
 import dash_bootstrap_components as dbc
@@ -7,7 +8,7 @@ from dash.dependencies import Input, Output, State, ALL
 from flask_caching import Cache
 import plotly.graph_objs as go
 
-import pickle
+import os
 import numpy as np
 import pyvista as pv
 import equadratures as eq
@@ -19,34 +20,31 @@ ncores = cpu_count()
 ###################################################################
 # Load data
 ###################################################################
-# Load baseline aerofoil
-base_airfoil = pv.read('surface_base.vtk').points
+dataloc = 'SUBSAMPLED_DATA'
 
-# Load baseline mesh (and subsample)
-basegrid = pv.read('basegrid.vtk')
-xskip = 3
-yskip = 2
-nx,ny,_ = basegrid.dimensions
+# Load baseline aerofoil
+base_airfoil = pv.read(os.path.join(dataloc,'surface_base.vtk')).points
+
+# Load baseline data
+x = np.load(os.path.join(dataloc,'xpts.npy'))
+y = np.load(os.path.join(dataloc,'ypts.npy'))
+nx = len(x)
+ny = len(y)
 npts = int(nx*ny)
-idx = np.arange(npts).reshape(nx,ny,order='F')[::yskip,::xskip].T
-points = basegrid.points_matrix[:,:,0,:2].transpose([1,0,2])
-pts = idx.flatten()
-x = points[:,0,0][::xskip]
-y = points[0,:,1][::yskip]
-assert len(x)*len(y)==len(pts)
+pts = np.arange(npts)
 ypred = np.empty(len(pts))
 
 # Load poly coeffs etc
-coeffs = np.load('coeffs.npy')
-lowers = np.load('lowers.npy')
-uppers = np.load('uppers.npy')
-W = np.load('W.npy')
+coeffs = np.load(os.path.join(dataloc,'coeffs.npy'))
+lowers = np.load(os.path.join(dataloc,'lowers.npy'))
+uppers = np.load(os.path.join(dataloc,'uppers.npy'))
+W      = np.load(os.path.join(dataloc,'W.npy'))
 var_name = [r'$C_p$',r'$\nu_t/\nu$',r'$u/U_{\infty}$',r'$v/U_{\infty}$']
 
 # Load training data to plot on summary plots
-X = np.load('X.npy')
+X = np.load(os.path.join(dataloc,'X.npy'))
+Y = np.load(os.path.join(dataloc,'Y.npy'))
 X = standardise(X)
-Y = np.load('Y.npy')[pts,:,:]
 
 ###################################################################
 # Overall app
@@ -334,7 +332,9 @@ def make_flowfield(n_clicks,airfoil_data,var,show_points):
     design_vec = airfoil_data['design-vec']
     airfoil_x  = airfoil_data['airfoil-x']
     airfoil_y  = airfoil_data['airfoil-y']
-    
+    airfoil_x  = np.hstack([airfoil_x[-1],airfoil_x])
+    airfoil_y  = np.hstack([airfoil_y[-1],airfoil_y])
+
     # Setup fig
     layout={'clickmode':'event+select','margin':dict(t=0,r=0,l=0,b=0,pad=0),'showlegend':False,"xaxis": {"title": 'x/C'}, "yaxis": {"title": 'y/C'},
             'paper_bgcolor':'white','plot_bgcolor':'white'}
