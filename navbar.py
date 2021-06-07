@@ -20,32 +20,17 @@ navbar = dbc.Navbar(
                 ),
                 href="https://equadratures.org/",
             ),
-            dbc.NavbarToggler(id="navbar-toggler"),
-            dbc.Collapse(
-                dbc.Nav(
-                    [
-                        dbc.NavItem(dbc.NavLink("Introduction", href="/")),
-                        dbc.NavItem(dbc.NavLink("Flowfield Estimation", href="/flowfield")),
-                        dbc.NavItem(dbc.NavLink("User Data", href="/datadriven"))
-                    ], className="ml-auto", navbar=True
-                ),
-                id="navbar-collapse",
-                navbar=True,
+            dbc.Nav(
+                [
+                    dbc.NavItem(dbc.NavLink("Introduction", href="/",active='exact',className='px-3')),
+                    dbc.NavItem(dbc.NavLink("Flowfield Estimation", href="/flowfield", active='exact',className='px-3')),
+                    dbc.NavItem(dbc.NavLink("User Data", href="/datadriven",active='exact',className='px-3'))
+                ], className="ml-auto", navbar=True, fill=True
             ),
-        ]
+        ], fluid=True
     ),
-    color="light",
+    color="white",
     dark=False,
-    className="mb-3",
+    className="mb-0",
+    fixed='top'
 )
-
-# add callback for toggling the collapse on small screens
-@app.callback(
-    Output("navbar-collapse", "is_open"),
-    [Input("navbar-toggler", "n_clicks")],
-    [State("navbar-collapse", "is_open")],
-)
-def toggle_navbar_collapse(n, is_open):
-    if n:
-        return not is_open
-    return is_open

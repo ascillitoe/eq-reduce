@@ -14,13 +14,41 @@ homepage = dbc.Container(
     ]
 )
 
+footer = html.Div(
+        [
+            html.P('Made by Ashley Scillitoe'),
+#            html.A(html.P('ascillitoe.com'),href='https://ascillitoe.com'),
+            html.P(html.A('ascillitoe.com',href='https://ascillitoe.com')),
+            html.P('Copyright © 2021')
+        ]
+    ,className='footer'
+)
+
+#dbc.Container(
+#    dbc.Row(
+#        dbc.Col(
+#            html.P(
+#                [
+#                    html.Span('Your Name', className='mr-2'), 
+#                    html.A(html.I(className='fas fa-envelope-square mr-1'), href='mailto:<you>@<provider>.com'), 
+#                    html.A(html.I(className='fab fa-github-square mr-1'), href='https://github.com/<you>/<repo>'), 
+#                    html.A(html.I(className='fab fa-linkedin mr-1'), href='https://www.linkedin.com/in/<you>/'), 
+#                    html.A(html.I(className='fab fa-twitter-square mr-1'), href='https://twitter.com/<you>'), 
+#                ], 
+#                className='footer'
+#            )
+#        )
+#    )
+#)
 
 app.layout = html.Div(
     [
         dcc.Location(id='url', refresh=True),
         navbar,
-        html.Div(homepage,id="page-content")#, style=CONTENT_STYLE)
-    ]
+        html.Div(homepage,id="page-content"),
+        footer
+    ],
+    style={'padding-top': '70px'}
 )
 
 @app.callback(Output('page-content', 'children'),
