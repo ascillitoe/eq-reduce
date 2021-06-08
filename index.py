@@ -6,13 +6,11 @@ from dash.dependencies import Input, Output
 from app import app
 from apps import flowfield, user_data
 from navbar import navbar
-
+from utils import convert_latex
 
 homepage = dbc.Container(
     [
         html.H2(dcc.Markdown("Dimension Reduction with *equadratures*")),
-
-        html.P(children='Delicious \(\pi\) is inline with my goals.'),
         html.H4('Active Subspaces'),
         html.H4('Variable Projection'),
         html.H4('References')
@@ -29,29 +27,12 @@ footer = html.Div(
     ,className='footer'
 )
 
-#dbc.Container(
-#    dbc.Row(
-#        dbc.Col(
-#            html.P(
-#                [
-#                    html.Span('Your Name', className='mr-2'), 
-#                    html.A(html.I(className='fas fa-envelope-square mr-1'), href='mailto:<you>@<provider>.com'), 
-#                    html.A(html.I(className='fab fa-github-square mr-1'), href='https://github.com/<you>/<repo>'), 
-#                    html.A(html.I(className='fab fa-linkedin mr-1'), href='https://www.linkedin.com/in/<you>/'), 
-#                    html.A(html.I(className='fab fa-twitter-square mr-1'), href='https://twitter.com/<you>'), 
-#                ], 
-#                className='footer'
-#            )
-#        )
-#    )
-#)
-
 app.layout = html.Div(
     [
         dcc.Location(id='url', refresh=True),
         navbar,
         html.Div(homepage,id="page-content"),
-        footer
+        footer,
     ],
     style={'padding-top': '70px'}
 )

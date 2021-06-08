@@ -55,27 +55,43 @@ cache = Cache(app.server, config={"CACHE_TYPE": "SimpleCache"})
 ###################################################################
 # Collapsable more info card
 ###################################################################
-info_text = r'''
-This app utilises polynomial ridges obtained for the paper *"Polynomial Ridge Flowfield Estimation"* [[1]](https://ascillitoe.com). Ridge approximations of the form $g(\mathbf{x})$ are obtained for the flow variables at each node, where $g$ is a second order orthogonal polynomial, and $\mathbf{x} \in \mathbb{R}^{50}$ is a vector parameterising the airfoil.  
+info_text = r"""
+This app utilises polynomial ridges obtained for the paper *"Polynomial Ridge Flowfield Estimation"* \[1]. For a given flow variable $f$ we wish to obtain ridge approximations of the form $g_i(\mathbf{W}_i^T\mathbf{x}_m) \approx f_i(\mathbf{x}_m)$ for all $i=1,\dots,N$ nodes, where $g_i$ is a second order orthogonal polynomial, and $\mathbf{x} \in \mathbb{R}^{50}$ is a vector parameterising the airfoil. The ridge approximations provide rapid flowfield estimates, and their *sufficient summary plots* offer valuable physical insights.
 
-###### Instructions
-    1. 
-    2. 
-    3.
+##### Instructions
+To use this app:
 
-###### Airfoil definition
-rgrg
+1. Define an airfoil in **Airfoil Definition** by adding one or more Hicks-Henne bump functions (see *Airfoil definition* below). The resulting airfoil is shown in the **Airfoil** tab. 
+2. Go to the **Flowfield Estimation** tab. Select a flow variable. Click COMPUTE FLOWFIELD to estimate the flowfield (*optional*), this may take a few seconds.
+3. To visualise information for a given ridge, first click the *show approximation points* toggle in the **Flowfield Estimation** tab. Select a node in the flowfield by clicking on it. The *sufficient summary plot* and *subspace matrix* for the selected point will appear in **Local Ridge Information**. The **Sufficient Summary Plot** describes the variation of the flow variable at the requested point. The deformed design can be easily compared to the other designs in the training set. 
+4. To understand how to alter the flow variable at the request point, turn to the **Subspace Matrix** plot; this shows how the airfoil must be deformed in order to increase $\mathbf{W}^T\mathbf{x}$. Try playing with the airfoil bump functions, and observe how the deformed airfoil marker moves around the **Sufficient Summary Plot**.  
 
-###### Training
-'Delicious \(\pi\) is inline with my goals.
+##### Airfoil definition
+The airfoil is parameterised by deforming a baseline NACA0012 with $d=50$ Hicks-Henne bump functions, with the new airfoil coordinates given by
 
-###### Use of ridges
+&emsp;&emsp;&emsp;&emsp; $y(x) = y_{base}(x) + \sum_{j=1}^d \beta_j \mathit{b}_j(x)$
 
+where $y_{base}(x)$ represents the baseline NACA0012 coordinates, $b_j$ is the $j^{th}$ bump function, and $\beta_j$ the corresponding bump amplitude. The bumps are uniformly distributed over both airfoil surfaces, and the bump amplitudes $[\beta_1,\dots,\beta_d]$ are stored within the input vector $\mathbf{x}_m\in \mathbb{R}^d$ for each $m^{th}$ design.
 
-###### References
-\[1]: 
+##### Training
 
-'''
+For training data, a CFD solver is used to obtain flowfields for $M=1000$ randomly deformed airfoils, resulting in the training dataset $\left\{ \mathbf{X}, \mathbf{F} \right\}$
+
+&emsp;&emsp;&emsp;&emsp; $\mathbf{X}=\left[\begin{array}{ccc}| &  & |\\\mathbf{x}_{1} & \ldots & \mathbf{x}_{M}\\| &  & |\end{array}\right], \; \; \; \; \;  \; \; \mathbf{F} = \left[\begin{array}{ccc}-& \mathbf{f}_{1}^{T} & -\\ & \vdots\\- & \mathbf{f}_{N}^{T} & -\end{array}\right]$
+
+with $\mathbf{X} \in \mathbb{R}^{d \times M}$ and $\mathbf{F} \in \mathbb{R}^{N \times M}$, where $N$ represents the number of spatial nodes. Training then involves finding a dimension reducing subspace $\mathbf{W_i}$ and subspace polynomial $g_i$ for all $i=1,\dots,N$ nodes. Training is done offline using parallel computing, and the computed ridges are loaded by this app. In \[1], a strategy exploting spatial correlations to reduce the number of ridge approximations required is also explored. Whilst in \[2], a similar framework is implemented using *Gaussian ridge functions*, which involves replacing $g_i$ with Gaussian processes.
+
+##### Accuracy
+
+In \[1], we compare the predictive accuracy of the above approach to a state-of-the-art deep learning framework for rapid flowfield estimations; a convolutional neural network \[3]. The accuracy of the ridge approximation framework is found to be competitive with the neural network for most flow conditions, with the accuracy only suffering at the highest angle of incidence explored ($\alpha=15^{\circ}$). This, in addition to the insights facilitated by the dimension reducing nature of the ridge approximations, makes them a promising tool for flowfield estimation and design space exploration.
+
+##### References
+\[1]: A. Scillitoe, C. Y. Wong, P. Seshadri, A. Duncan. "Polynomial Ridge Flowfield Estimation". Under review at *Physics of Fluids*, [arXiv]().
+
+\[2]: A. Scillitoe, P. Seshadri and C. Y. Wong. "Instantaneous Flowfield Estimation with Gaussian Ridges". *Proceedings of AIAA SciTech Forum*. Virtual event (2021). [Paper](http://dx.doi.org/10.2514/6.2021-1138).
+
+\[3]: S. Bhatnagar et al. "Prediction of aerodynamic flow fields using convolutional neural networks". *Computational Mechanics* (2019). [Paper](https://doi.org/10.1007/s00466-019-01740-0).  
+"""
 
 # Parse latex math into markdown
 info_text = dcc.Markdown(convert_latex(info_text), dangerously_allow_html=True, style={'background-color':'white'})
@@ -133,7 +149,7 @@ airfoil_plot = dbc.Container(
 # Airfoil definitions card
 airfoil_definitions_card = dbc.Card(
     [
-        dbc.CardHeader(dcc.Markdown("**Airfoil definition**")),
+        dbc.CardHeader(dcc.Markdown("**Airfoil Definition**")),
         dbc.CardBody(airfoil_bumps_def),
         ],style={'height':'70vh'}
 )
@@ -152,7 +168,9 @@ summary_plot = dbc.Container(
                 dbc.Col(
                     [
                         dcc.Markdown('**Subspace Matrix**', style={'text-align':'center'}),
-                        dcc.Markdown('Projection of weights in **W** over airfoil - identifies deformations to traverse summary plot from left to right.', style={'text-align':'left','width':'40vw'}),
+                        dcc.Markdown(convert_latex(
+                            r'Projection of weights in $\mathbf{W}$ over airfoil - identifies deformations needed to increase $\mathbf{W}^T\mathbf{x}$ i.e. to traverse summary plot from left to right.' 
+                            ),dangerously_allow_html=True,style={'text-align':'left','width':'40vw'}),
                         dbc.Alert(dcc.Markdown('**Note:** Outwards deformations = Positive bump amplitude'),
                             dismissable=True,is_open=True,color='info',style={'padding-top':'0.4rem','padding-bottom':'0.0rem'}),
                         dcc.Graph(id="Wproject-plot",style={'height':'40vh','width':'40vw'})
@@ -165,7 +183,7 @@ summary_plot = dbc.Container(
 # point information card
 point_info_card = dbc.Card(
     [
-        dbc.CardHeader(dcc.Markdown('**Local ridge information** \(select an approximation point first!)')),
+        dbc.CardHeader(dcc.Markdown('**Local Ridge Information** \(select an approximation point first!)')),
         dbc.CardBody(summary_plot)
         ], style={'margin-top':'10px'} 
 )
