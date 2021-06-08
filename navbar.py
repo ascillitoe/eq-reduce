@@ -13,7 +13,7 @@ navbar = dbc.Navbar(
                 # Use row and col to control vertical alignment of logo / brand
                 dbc.Row(
                     [
-                        dbc.Col(html.Img(src=EQ_LOGO, height="35px")),
+                        dbc.Col(html.Img(src=EQ_LOGO, height="40px")),
                     ],
                     align="center",
                     no_gutters=True,

@@ -12,7 +12,7 @@ import numpy as np
 import pyvista as pv
 import equadratures as eq
 from joblib import Parallel, delayed, cpu_count
-from utils import deform_airfoil, eval_poly, standardise, get_samples_constraining_active_coordinates, get_airfoils, airfoil_mask
+from utils import deform_airfoil, eval_poly, standardise, get_samples_constraining_active_coordinates, get_airfoils, airfoil_mask, convert_latex
 
 from app import app
 
@@ -52,36 +52,70 @@ X = standardise(X)
 ###################################################################
 cache = Cache(app.server, config={"CACHE_TYPE": "SimpleCache"})
 
-# Collapsable intro card
-intro = dbc.Card(
+###################################################################
+# Collapsable more info card
+###################################################################
+info_text = r'''
+This app utilises polynomial ridges obtained for the paper *"Polynomial Ridge Flowfield Estimation"* [[1]](https://ascillitoe.com). Ridge approximations of the form $g(\mathbf{x})$ are obtained for the flow variables at each node, where $g$ is a second order orthogonal polynomial, and $\mathbf{x} \in \mathbb{R}^{50}$ is a vector parameterising the airfoil.  
+
+###### Instructions
+    1. 
+    2. 
+    3.
+
+###### Airfoil definition
+rgrg
+
+###### Training
+'Delicious \(\pi\) is inline with my goals.
+
+###### Use of ridges
+
+
+###### References
+\[1]: 
+
+'''
+
+# Parse latex math into markdown
+info_text = dcc.Markdown(convert_latex(info_text), dangerously_allow_html=True, style={'background-color':'white'})
+
+info = dbc.Card(
     [
         dbc.CardHeader(dbc.Form(
             [
-                dbc.Label(dcc.Markdown('**Introduction**'),className="mr-3"),
+                dbc.Label(dcc.Markdown('**More Information**'),className="mr-3"),
                 dbc.Button(
                     "Expand",
                     color="primary",
-                    id="intro-button",
+                    id="flow-info-button",
                     className="py-0"
                 ),
             ],inline=True,
         )),
         dbc.Collapse(
-            dbc.CardBody("This is the intro"),
-            id="intro-collapse",
+            dbc.CardBody(info_text),
+            id="flow-info-collapse",
         ),
-    ], style={'margin-bottom':'10px'} 
+    ], style={'margin-top':'10px'} 
 )
 
+###################################################################
 # Card containing the Interface to define deformed airfoil via Hicks-Henne bumps 
+###################################################################
 airfoil_bumps_def = dbc.Container(
     [
-        dcc.Markdown("Add Hicks-Henne bump functions to deform the NACA0012 airfoil"),
+        dcc.Markdown("Add Hicks-Henne bump functions to deform the NACA0012 airfoil."),
+        dbc.Alert(dcc.Markdown('**Note:** Multiple bumps cannot be applied at the same location'),
+            dismissable=True,is_open=True,color='info',style={'padding-top':'0.4rem','padding-bottom':'0.0rem'}),
         dbc.Row(dbc.Col(dbc.Button("Add Bump", id="add-bump", color="primary", n_clicks=0),width=3),align='center',justify='start',style={'margin-bottom':'5px'}),
         dbc.Row(dbc.Col(html.Div(id='slider-container', children=[]))) #The slider-container callback adds an extra row here each time "Add Bump" is pressed
     ],fluid=True 
 )
 
+###################################################################
+# Results/outputs plots etc
+###################################################################
 # The airfoil plot
 #fig = create_airfoil_plot()
 fig_layout = {"xaxis": {"title": r'$x/C$'}, "yaxis": {"title": r'$y/C$'},'margin':{'t':10,'r':0,'l':0,'b':0,'pad':0},'autosize':True,
@@ -104,10 +138,6 @@ airfoil_definitions_card = dbc.Card(
         ],style={'height':'70vh'}
 )
 
-
-###################################################################
-# Flowfield estimation page
-###################################################################
 # Active subspace (sufficient summary) plot
 summary_plot = dbc.Container(
     [
@@ -116,20 +146,20 @@ summary_plot = dbc.Container(
                 dbc.Col(
                     [
                         dcc.Markdown('**Sufficient Summary Plot**',style={'text-align':'center'}),
-                        dcc.Markdown('Visualises variation of the chosen flow variable at the selected point, over its one dimensional subspace.', style={'text-align':'center'}),
-                        dcc.Graph(id="summary-plot", style={}) 
-                    ], width=6),
+                        dcc.Markdown('Visualises variation of the chosen flow variable at the selected point, over its one dimensional subspace.', style={'text-align':'left','width':'45vw'}),
+                        dcc.Graph(id="summary-plot", config={'responsive':True}, style={'height':'50vh','width':'45vw'}) 
+                    ], width='auto'),
                 dbc.Col(
                     [
                         dcc.Markdown('**Subspace Matrix**', style={'text-align':'center'}),
-                        dcc.Markdown('Projection of weights in **W** over airfoil - identifies deformations to traverse summary plot from left to right.', style={'text-align':'center'}),
+                        dcc.Markdown('Projection of weights in **W** over airfoil - identifies deformations to traverse summary plot from left to right.', style={'text-align':'left','width':'40vw'}),
                         dbc.Alert(dcc.Markdown('**Note:** Outwards deformations = Positive bump amplitude'),
                             dismissable=True,is_open=True,color='info',style={'padding-top':'0.4rem','padding-bottom':'0.0rem'}),
-                        dcc.Graph(id="Wproject-plot",style={})
-                    ], width=6),
-            ]
+                        dcc.Graph(id="Wproject-plot",style={'height':'40vh','width':'40vw'})
+                    ], width='auto'),
+            ], justify="between"
         )
-    ]
+    ], fluid=True
 )
 
 # point information card
@@ -182,10 +212,17 @@ tooltips = html.Div([
         dbc.Tooltip("Add Hicks-Henne bump functions to deform the baseline NACA0012 airfoil", target="add-bump"),
     ])
 
+###################################################################
 # The overall app layout
+###################################################################
 layout = dbc.Container(
     [
-    dbc.Row(dbc.Col(intro,width=12)),
+    html.H2("Flowfield Estimation using Polynomial Ridges"),
+    dcc.Markdown('''
+    This app embeds dimension reducing polynomial ridge functions into the flowfield around an airfoil. The ridges provide rapid flowfield estimations, as well as physical insight. 
+
+    ***Scroll to the bottom of the page for more information!***
+    '''),
     dbc.Row(
         [
             dbc.Col(airfoil_definitions_card,width=5),
@@ -193,6 +230,7 @@ layout = dbc.Container(
         ]
     ),
     dbc.Row(dbc.Col(point_info_card,width=12)),
+    dbc.Row(dbc.Col(info,width=12)),
     dcc.Store(id='airfoil-data'),
     tooltips
     ],
@@ -395,7 +433,7 @@ def make_flowfield(n_clicks,airfoil_data,var,show_points):
 def display_active_plot(clickData,airfoil_data,var):
     # Sufficient summary plot
     layout1={"xaxis": {"title": r'$\mathbf{W}^T\mathbf{x}$'}, "yaxis": {"title": var_name[var]},'margin':{'t':0,'r':0,'l':0,'b':60},
-            'paper_bgcolor':'white','plot_bgcolor':'white','autosize':False}
+            'paper_bgcolor':'white','plot_bgcolor':'white','autosize':True}
 
     fig1 = go.Figure(layout=layout1)
     fig1.update_xaxes(color='black',linecolor='black',showline=True,tickcolor='black',ticks='outside')
@@ -403,9 +441,9 @@ def display_active_plot(clickData,airfoil_data,var):
 
     # W projection plot
     layout2={'margin':dict(t=0,r=0,l=0,b=0,pad=0),'showlegend':False,"xaxis": {"title": r'$x/C$'}, "yaxis": {"title": r'$y/C$'},
-            'paper_bgcolor':'white','plot_bgcolor':'white'}#,'height':350}
+            'paper_bgcolor':'white','plot_bgcolor':'white','autosize':True}#,'height':350}
     fig2 = go.Figure(layout=layout2)
-    fig2.update_xaxes(title=r'$x/C$',range=[-0.02,1.02],showgrid=True, zeroline=False, visible=True,gridcolor='rgba(0,0,0,0.2)',showline=False,linecolor='black')
+    fig2.update_xaxes(title=r'$x/C$',range=[-0.02,1.02],showgrid=True, zeroline=False, visible=True,gridcolor='rgba(0,0,0,0.2)',showline=True,linecolor='black')
     fig2.update_yaxes(scaleanchor = "x", scaleratio = 1, showgrid=False, showticklabels=False, zeroline=False, visible=False)
     fig2.add_trace(go.Scatter(x=base_airfoil[:,0],y=base_airfoil[:,1],mode='lines',line_width=4,line_color='black'))
 
@@ -465,16 +503,20 @@ def display_active_plot(clickData,airfoil_data,var):
             fig2.add_trace(go.Scatter(x=x_bumps,y=ys,mode='lines',line_width=1,line_color='black'))  # plot hidden line to use with fill=tonexty below
             fig2.add_trace(go.Scatter(x=x_bumps,y=ys+ws,mode='lines',line_width=4,line_color='LightSkyBlue',fill='tonexty',fillcolor='rgba(135,206,250, 0.3)'))
             # Pressure annotation
-            fig2.add_annotation(x=x_bumps[-4],y=yp[-4]+wp[-4],text='Pressure surface deformation',xanchor='right',ax=-50,ay=70,font={'size':14,'color':'LightSalmon'},valign='bottom',showarrow=True,arrowhead=3,arrowsize=2,arrowcolor='LightSalmon')
+            fig2.add_annotation(x=x_bumps[-4],y=yp[-4]+wp[-4],text='Pressure surface deformation',xanchor='right',ax=-50,ay=85,font={'size':14,'color':'LightSalmon'},valign='bottom',showarrow=True,arrowhead=3,arrowsize=2,arrowcolor='LightSalmon')
             # Suction annotation
-            fig2.add_annotation(x=x_bumps[3],y=ys[3]+ws[3],text='Suction surface deformation',xanchor='left',ax=50,ay=-70,font={'size':14,'color':'LightSkyBlue'},valign='top',showarrow=True,arrowhead=3,arrowsize=2,arrowcolor='LightSkyBlue')
+            fig2.add_annotation(x=x_bumps[3],y=ys[3]+ws[3],text='Suction surface deformation',xanchor='left',ax=50,ay=-90,font={'size':14,'color':'LightSkyBlue'},valign='top',showarrow=True,arrowhead=3,arrowsize=2,arrowcolor='LightSkyBlue')
 
     return fig1, fig2
 
+###################################################################
+# Other callbacks
+###################################################################
+# More info collapsable
 @app.callback(
-    Output("intro-collapse", "is_open"),
-    [Input("intro-button", "n_clicks")],
-    [State("intro-collapse", "is_open")],
+    Output("flow-info-collapse", "is_open"),
+    [Input("flow-info-button", "n_clicks")],
+    [State("flow-info-collapse", "is_open")],
 )
 def toggle_collapse(n, is_open):
     if n:

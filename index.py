@@ -4,14 +4,19 @@ import dash_html_components as html
 from dash.dependencies import Input, Output
 
 from app import app
-from apps import flowfield, app2
+from apps import flowfield, user_data
 from navbar import navbar
 
 
 homepage = dbc.Container(
     [
-         html.H1("Dimension reduction with equadratures")
-    ]
+        html.H2(dcc.Markdown("Dimension Reduction with *equadratures*")),
+
+        html.P(children='Delicious \(\pi\) is inline with my goals.'),
+        html.H4('Active Subspaces'),
+        html.H4('Variable Projection'),
+        html.H4('References')
+    ], fluid=True
 )
 
 footer = html.Div(
@@ -59,7 +64,7 @@ def display_page(pathname):
     if pathname == '/flowfield':
         return flowfield.layout
     elif pathname == '/datadriven':
-        return app2.layout
+        return user_data.layout
     else:
         return '404'
 
