@@ -95,7 +95,7 @@ To use this app:
 ##### Airfoil definition
 The airfoil is parameterised by deforming a baseline NACA0012 with $d=50$ Hicks-Henne bump functions, with the new airfoil coordinates given by
 
-&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp; $y(x) = y_{base}(x) + \sum_{j=1}^d \beta_j \mathit{b}_j(x)$
+$$y(x) = y_{base}(x) + \sum_{j=1}^d \beta_j \mathit{b}_j(x)$$
 
 where $y_{base}(x)$ represents the baseline NACA0012 coordinates, $b_j$ is the $j^{th}$ bump function, and $\beta_j$ the corresponding bump amplitude. The bumps are uniformly distributed over both airfoil surfaces, and the bump amplitudes $[\beta_1,\dots,\beta_d]$ are stored within the input vector $\mathbf{x}_m\in \mathbb{R}^d$ for each $m^{th}$ design.
 
@@ -103,7 +103,7 @@ where $y_{base}(x)$ represents the baseline NACA0012 coordinates, $b_j$ is the $
 
 For training data, a CFD solver is used to obtain flowfields for $M=1000$ randomly deformed airfoils, resulting in the training dataset $\left\{ \mathbf{X}, \mathbf{F} \right\}$
 
-&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp; $\mathbf{X}=\left[\begin{array}{ccc}| &  & |\\\mathbf{x}_{1} & \ldots & \mathbf{x}_{M}\\| &  & |\end{array}\right], \; \; \; \; \;  \; \; \mathbf{F} = \left[\begin{array}{ccc}-& \mathbf{f}_{1}^{T} & -\\ & \vdots\\- & \mathbf{f}_{N}^{T} & -\end{array}\right]$
+$$\mathbf{X}=\left[\begin{array}{ccc}| &  & |\\\mathbf{x}_{1} & \ldots & \mathbf{x}_{M}\\| &  & |\end{array}\right], \; \; \; \; \;  \; \; \mathbf{F} = \left[\begin{array}{ccc}-& \mathbf{f}_{1}^{T} & -\\ & \vdots\\- & \mathbf{f}_{N}^{T} & -\end{array}\right]$$
 
 with $\mathbf{X} \in \mathbb{R}^{d \times M}$ and $\mathbf{F} \in \mathbb{R}^{N \times M}$, where $N$ represents the number of spatial nodes. Training then involves finding a dimension reducing subspace $\mathbf{W_i}$ and subspace polynomial $g_i$ for all $i=1,\dots,N$ nodes. Training is done offline using parallel computing, and the computed ridges are loaded by this app. In \[1], a strategy exploting spatial correlations to reduce the number of ridge approximations required is also explored. Whilst in \[2], a similar framework is implemented using *Gaussian ridge functions*, which involves replacing $g_i$ with Gaussian processes.
 
