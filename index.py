@@ -92,7 +92,7 @@ homepage = dbc.Container(home_text)
 ###################################################################
 footer = html.Div(
         [
-            html.P('Made by Ashley Scillitoe'),
+            html.P('App built by Ashley Scillitoe'),
 #            html.A(html.P('ascillitoe.com'),href='https://ascillitoe.com'),
             html.P(html.A('ascillitoe.com',href='https://ascillitoe.com')),
             html.P('Copyright © 2021')

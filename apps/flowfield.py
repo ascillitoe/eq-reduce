@@ -139,7 +139,7 @@ info = dbc.Card(
             dbc.CardBody(info_text),
             id="flow-info-collapse",
         ),
-        ], style={'margin-top':'10px'} 
+    ],  
 )
 
 ###################################################################
@@ -264,9 +264,8 @@ layout = dbc.Container(
     html.H2("Flowfield Estimation"),
     dcc.Markdown('''
     This app embeds dimension reducing polynomial ridge functions into the flowfield around an airfoil. The ridges provide rapid flowfield estimations, as well as physical insight. 
-
-    ***Scroll to the bottom of the page for more information!***
     '''),
+    dbc.Row(dbc.Col(info,width=12),justify="center",style={'margin-bottom':'10px'}),
     dbc.Row(
         [
             dbc.Col(airfoil_definitions_card,width=5),
@@ -274,7 +273,6 @@ layout = dbc.Container(
         ]
     ),
     dbc.Row(dbc.Col(point_info_card,width=12)),
-    dbc.Row(dbc.Col(info,width=10),justify="center",),
     dcc.Store(id='airfoil-data'),
     tooltips
     ],

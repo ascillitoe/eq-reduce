@@ -36,7 +36,7 @@ info = dbc.Card(
             dbc.CardBody(info_text),
             id="data-info-collapse",
         ),
-    ], style={'margin-top':'10px'} 
+    ], 
 )
 
 ###################################################################
@@ -50,8 +50,6 @@ layout = dbc.Container(
 
     **Coming soon!**
     '''),
-#    ***Scroll to the bottom of the page for more information!***
-#    '''),
     info,
 #    dcc.Store(id='airfoil-data'),
 #    tooltips
