@@ -13,8 +13,6 @@ import equadratures as eq
 
 from app import app
 
-ncores = cpu_count()
-
 ###################################################################
 # Collapsable more info card
 ###################################################################
