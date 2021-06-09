@@ -3,7 +3,7 @@ import dash_bootstrap_components as dbc
 import dash_html_components as html
 from dash.dependencies import Input, Output
 
-from app import app
+from app import app, server
 from apps import flowfield, user_data
 from navbar import navbar
 from utils import convert_latex
