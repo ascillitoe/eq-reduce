@@ -120,7 +120,7 @@ In \[1], we compare the predictive accuracy of the above approach to a state-of-
 """
 
 # Parse latex math into markdown
-info_text = dcc.Markdown(convert_latex(info_text), dangerously_allow_html=True)
+info_text = dcc.Markdown(convert_latex(info_text), dangerously_allow_html=True, style={'text-align':'justify'})
 
 info = dbc.Card(
     [
@@ -274,7 +274,7 @@ layout = dbc.Container(
         ]
     ),
     dbc.Row(dbc.Col(point_info_card,width=12)),
-    dbc.Row(dbc.Col(info,width=8),justify="center",),
+    dbc.Row(dbc.Col(info,width=10),justify="center",),
     dcc.Store(id='airfoil-data'),
     tooltips
     ],

@@ -16,13 +16,9 @@ from utils import convert_latex
 home_text = r'''
 ## Data-Driven Dimension Reduction
 
-<p style='text-align: justify;'>
 The apps contained in these pages utilise the [*equadratures*](https://equadratures.org/) data-driven dimension reduction capability for a number of tasks. In **Flowfield Estimation**, dimension reducing ridges are embedded within an airfoil flow for rapid flowfield estimation and design exploration, whilst in **User Data**, you can apply the techniques to your own datasets. But first, the underlying ideas are briefly introduced. 
-</p>
 
-<p style='text-align: justify;'>
 Many physical systems are high dimensional, which can make it challenging to obtain approximations of them, and it often even more challenging to visualise these approximations. However, all is not lost! Many seemingly high-dimensional systems have intrinsically low-dimensional structure. Although the quantity of interest $f(\mathbf{x})$ might be defined as a function of a large set of parameters $\mathbf{x} \in \mathbb{R}^d$, its variation can often be approximately captured with a small number of linear projections of the original parameters $\mathbf{W}^T \mathbf{x} \in \mathbb{R}^n$. Here, $n \ll d$ and $\mathbf{W} \in \mathbb{R}^{d\times n}$ is a tall matrix whose column span is called the *dimension reducing subspace*, or *active subspace*. 
-</p>
 
 In other words, we assume that our quantities of interest are well--approximated by *ridge functions*,
 
@@ -87,7 +83,7 @@ subspace = Subspaces(method='variable-projection',sample_points=X,
 \[2]: J. Hokanson and P. Constantine. "Data-Driven Polynomial Ridge Approximation Using Variable Projection". *SIAM Journal of Scientific Computing* (2017). [Paper](https://doi.org/10.1137/17M1117690).
 '''
 
-home_text = dcc.Markdown(convert_latex(home_text), dangerously_allow_html=True)
+home_text = dcc.Markdown(convert_latex(home_text), dangerously_allow_html=True, style={'text-align':'justify'})
 
 homepage = dbc.Container(home_text)
 
