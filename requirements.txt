@@ -1,0 +1,10 @@
+dash
+dash_core_components
+dash_html_components
+dash_daq
+flask_caching
+plotly
+numpy
+pyvista
+equadratures
+joblib

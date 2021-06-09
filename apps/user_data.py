@@ -49,9 +49,9 @@ info = dbc.Card(
 ###################################################################
 layout = dbc.Container(
     [
-    html.H2("Data-Driven Dimension Reduction"),
+    html.H2("Reduce Me!"),
     dcc.Markdown('''
-    This app embeds computes dimension reducing subspaces. Upload your own data, or choose from an example dataset.
+    This app computes dimension reducing subspaces for your data! Upload your data, or choose an example dataset.
 
     **Coming soon!**
     '''),
