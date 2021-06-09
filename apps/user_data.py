@@ -9,10 +9,7 @@ import plotly.graph_objs as go
 
 import os
 import numpy as np
-import pyvista as pv
 import equadratures as eq
-from joblib import Parallel, delayed, cpu_count
-from utils import deform_airfoil, eval_poly, standardise, get_samples_constraining_active_coordinates, get_airfoils, airfoil_mask
 
 from app import app
 
