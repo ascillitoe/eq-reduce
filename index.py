@@ -15,10 +15,14 @@ from utils import convert_latex
 
 home_text = r'''
 ## Data-Driven Dimension Reduction
-   
-The apps contained in these pages utilise the [*equadratures*](https://equadratures.org/) data-driven dimension reduction capability for a number of tasks. In **Flowfield Estimation**, dimension reducing ridges are embedded within an airfoil flow for rapid flowfield estimation and design exploration, whilst in **User Data**, you can apply the techniques to your own datasets. But first, the underlying ideas are briefly introduced. 
 
+<p style='text-align: justify;'>
+The apps contained in these pages utilise the [*equadratures*](https://equadratures.org/) data-driven dimension reduction capability for a number of tasks. In **Flowfield Estimation**, dimension reducing ridges are embedded within an airfoil flow for rapid flowfield estimation and design exploration, whilst in **User Data**, you can apply the techniques to your own datasets. But first, the underlying ideas are briefly introduced. 
+</p>
+
+<p style='text-align: justify;'>
 Many physical systems are high dimensional, which can make it challenging to obtain approximations of them, and it often even more challenging to visualise these approximations. However, all is not lost! Many seemingly high-dimensional systems have intrinsically low-dimensional structure. Although the quantity of interest $f(\mathbf{x})$ might be defined as a function of a large set of parameters $\mathbf{x} \in \mathbb{R}^d$, its variation can often be approximately captured with a small number of linear projections of the original parameters $\mathbf{W}^T \mathbf{x} \in \mathbb{R}^n$. Here, $n \ll d$ and $\mathbf{W} \in \mathbb{R}^{d\times n}$ is a tall matrix whose column span is called the *dimension reducing subspace*, or *active subspace*. 
+</p>
 
 In other words, we assume that our quantities of interest are well--approximated by *ridge functions*,
 
@@ -37,7 +41,7 @@ $$\mathbf{C} = [\mathbf{W} \; \mathbf{V}] \begin{bmatrix} \mathbf{\Lambda}_1 & \
     
 where $\mathbf{\Lambda}_1$ is a diagonal matrix containing the largest eigenvalues, and $\mathbf{\Lambda}_2$ the smallest eigenvalues, both sorted in descending order. This partition should be chosen such that there is a large gap between the last eigenvalue of $\mathbf{\Lambda}_1$ and the first eigenvalue of $\mathbf{\Lambda}_2$ \[1]. Thus, this partitioning of $\mathbf{Q}$ yields the active subspace matrix $\mathbf{W}$ and the inactive subspace matrix $\mathbf{V}$.
 
-An example of this method in action is given below, where a $n=1$ dimensional approximation is obtained for the $d=7$ temperature probe dataset avaiable from the [equadratures dataset repository](https://github.com/Effective-Quadratures/data-sets). Note that since the construction of $\mathbf{C}$ requires $g(\mathbf{x})$, a polynomial fitted in the full $d=7$ dimensional space, it can be prudent to first check the accuracy of this polynomial, as is done below.
+An example of this method in action is given below, where a $n=1$ dimensional approximation is obtained for the $d=7$ temperature probe dataset available from the [equadratures dataset repository](https://github.com/Effective-Quadratures/data-sets). Note that since the construction of $\mathbf{C}$ requires $g(\mathbf{x})$, a polynomial fitted in the full $d=7$ dimensional space, it can be prudent to first check the accuracy of this polynomial, as is done below.
     
 ```python
 import equadratures as eq
