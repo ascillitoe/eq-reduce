@@ -6,7 +6,6 @@ dash_daq
 flask_caching
 plotly
 numpy
-pyvista
 equadratures
 joblib
 gunicorn

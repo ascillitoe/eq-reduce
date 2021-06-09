@@ -9,7 +9,6 @@ import plotly.graph_objs as go
 
 import os
 import numpy as np
-import pyvista as pv
 import equadratures as eq
 from joblib import Parallel, delayed, cpu_count
 from utils import deform_airfoil, eval_poly, standardise, get_samples_constraining_active_coordinates, get_airfoils, airfoil_mask, convert_latex
@@ -24,7 +23,7 @@ ncores = cpu_count()
 dataloc = 'SUBSAMPLED_DATA'
 
 # Load baseline aerofoil
-base_airfoil = pv.read(os.path.join(dataloc,'surface_base.vtk')).points
+base_airfoil = np.load(os.path.join(dataloc,'base_airfoil.npy'))
 
 # Load baseline data
 x = np.load(os.path.join(dataloc,'xpts.npy'))

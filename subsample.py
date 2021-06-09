@@ -53,3 +53,10 @@ np.save(os.path.join(new_dir,'ypts.npy'),y)
 ###################################################################
 shutil.copyfile(os.path.join(orig_dir,'surface_base.vtk'),os.path.join(new_dir,'surface_base.vtk'))
 shutil.copyfile(os.path.join(orig_dir,'X.npy'),os.path.join(new_dir,'X.npy'))
+
+###################################################################
+# Load vtk file and convert to numpy to remove pyvista dependency
+###################################################################
+base_airfoil = pv.read(os.path.join(orig_dir,'surface_base.vtk')).points
+np.save(os.path.join(new_dir,'base_airfoil.npy'),base_airfoil)
+
