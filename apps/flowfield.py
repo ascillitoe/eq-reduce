@@ -47,9 +47,36 @@ Y = np.load(os.path.join(dataloc,'Y.npy'))
 X = standardise(X)
 
 ###################################################################
-# Cache
+# Setup cache (simple cache if locally run, otherwise configured
+# to use memcachier on heroku)
 ###################################################################
-cache = Cache(app.server, config={"CACHE_TYPE": "SimpleCache"})
+cache_servers = os.environ.get('MEMCACHIER_SERVERS')
+if cache_servers == None:
+    # Fall back to simple in memory cache (development)
+    cache = Cache(app.server,config={'CACHE_TYPE': 'SimpleCache'})
+else:
+    cache_user = os.environ.get('MEMCACHIER_USERNAME') or ''
+    cache_pass = os.environ.get('MEMCACHIER_PASSWORD') or ''
+    cache = Cache(app.server,
+        config={'CACHE_TYPE': 'SASLMemcachedCache',
+                'CACHE_MEMCACHED_SERVERS': cache_servers.split(','),
+                'CACHE_MEMCACHED_USERNAME': cache_user,
+                'CACHE_MEMCACHED_PASSWORD': cache_pass,
+                'CACHE_OPTIONS': { 'behaviors': {
+                    # Faster IO
+                    'tcp_nodelay': True,
+                    # Keep connection alive
+                    'tcp_keepalive': True,
+                    # Timeout for set/get requests
+                    'connect_timeout': 2000, # ms
+                    'send_timeout': 750 * 1000, # us
+                    'receive_timeout': 750 * 1000, # us
+                    '_poll_timeout': 2000, # ms
+                    # Better failover
+                    'ketama': True,
+                    'remove_failed': 1,
+                    'retry_timeout': 2,
+                    'dead_timeout': 30}}})
 
 ###################################################################
 # Collapsable more info card
