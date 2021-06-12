@@ -24,7 +24,7 @@ navbar = dbc.Navbar(
                 [
                     dbc.NavItem(dbc.NavLink("Introduction", href="/",active='exact',className='px-3')),
                     dbc.NavItem(dbc.NavLink("Flowfield Estimation", href="/flowfield", active='exact',className='px-3')),
-                    dbc.NavItem(dbc.NavLink("User Data", href="/datadriven",active='exact',className='px-3'))
+                    dbc.NavItem(dbc.NavLink("My Data", href="/datadriven",active='exact',className='px-3'))
                 ], className="ml-auto", navbar=True, fill=True
             ),
         ], fluid=True

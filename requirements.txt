@@ -6,7 +6,10 @@ dash_daq
 flask_caching
 plotly
 numpy
+pandas
 equadratures
 joblib
+jsonpickle
 gunicorn
 pylibmc
+
