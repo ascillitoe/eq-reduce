@@ -168,7 +168,7 @@ method_dropdown = dbc.FormGroup(
 order_slider = dbc.FormGroup(
     [
         dbc.Label('Polynomial order', html_for="order-slider"),
-        dcc.Slider(id='order-slider',min=1, max=3,value=1,
+        dcc.Slider(id='order-slider',min=1, max=4,value=1,
             tooltip = { 'always_visible': True, 'placement': 'bottom' }
         )
     ]
@@ -235,7 +235,7 @@ subspace_matrix_plot = dbc.Container(
             )
         )),
         dbc.Row(dbc.Col(
-            dcc.Graph(id="data-W-plot",style={'height':'50vh','width':'inherit'})
+            dcc.Graph(figure={},id="data-W-plot",style={'height':'50vh','width':'inherit'})
         )),
     ],fluid=True
 )
@@ -248,7 +248,7 @@ eigenvalue_plot = dbc.Container(
                 dangerously_allow_html=True,style={'text-align':'justify','margin-top':'10px'}),
         )),
         dbc.Row(dbc.Col(
-            dcc.Graph(id="eigen-plot",style={'height':'50vh','width':'inherit'})
+            dcc.Graph(figure={},id="eigen-plot",style={'height':'50vh','width':'inherit'})
         )),
 
     ],fluid=True
@@ -336,7 +336,7 @@ summary_card = dbc.Card(
             ),
             dbc.Row(dbc.Col(dcc.Markdown(id='toggle-text'),width='auto'),justify='center'),
             dbc.Row(dbc.Col(
-                dcc.Graph(id="data-summary-plot", config={'responsive':True}, style={'height':'50vh','width':'40vw'}) 
+                dcc.Graph(figure={},id="data-summary-plot", config={'responsive':True}, style={'height':'50vh','width':'40vw'}) 
             ,width='auto'),justify='center')
             ]
         )
@@ -763,6 +763,8 @@ def display_eigen_plot(subspace_data,method):
                 ))
             
             return fig
+        else:
+            return {}
 
 ###################################################################
 # Download callbacks
