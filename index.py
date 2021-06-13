@@ -75,7 +75,15 @@ is solved by recasting it as a separable non-linear least squares problem. Here,
 
 home_text = dcc.Markdown(convert_latex(home_text), dangerously_allow_html=True, style={'text-align':'justify'})
 
-homepage = dbc.Container(home_text)
+# disclaimer message
+final_details = r'''
+This app is currently hosted *on the cloud* via a free [Heroku dyno](https://www.heroku.com/dynos). It can take a while to boot up, and can be slow when there are multiple users. If it is too slow please do come back later! 
+
+Please report any bugs to [ascillitoe@effective-quadratures.org](mailto:ascillitoe@effective-quadratures.org).
+'''
+final_details = dbc.Alert(dcc.Markdown(final_details),
+        dismissable=True,is_open=True,color='info',style={'padding-top':'0.4rem','padding-bottom':'0.0rem'})
+
 
 ###################################################################
 # Footer
@@ -93,6 +101,8 @@ footer = html.Div(
 ###################################################################
 # App layout (adopted for all sub-apps/pages)
 ###################################################################
+homepage = dbc.Container([home_text,final_details])
+
 app.layout = html.Div(
     [
         dcc.Location(id='url', refresh=True),

@@ -14,6 +14,7 @@ import base64
 import io
 import pickle
 import jsonpickle
+import math
 import numpy as np
 import pandas as pd
 import equadratures as eq
@@ -24,9 +25,16 @@ from app import app
 ###################################################################
 # Collapsable more info card
 ###################################################################
-info_text = dcc.Markdown('''
-Coming soon!
-''')
+info_text = r'''
+Upload your data in *.csv* format using the **Load Data** card. Take note of the following:
+- The data must in standard *wide-format* i.e. with each row representing an observation/sample. 
+- There must be no NaN's or empty cells.
+- For computational cost purposes datasets are currently capped at $N=2000$ rows and $d=50$ input dimensions. For guidance on handling larger datasets checkout the [docs](https://equadratures.org/) or [get in touch](https://discourse.equadratures.org/).
+- The variable projection algo is nondeterministic. If you get bad $R^2$ scores, try again!
+- Particularly when higher polynomial orders are selected, monitor the test $R^2$ score to check for *over-fitting*.
+- If the $R^2$ scores are low, try to vary the polynomial order and number of subspace dimensions.
+
+'''
 
 info = html.Div(
     [
@@ -34,11 +42,11 @@ info = html.Div(
     dbc.Modal(
         [
             dbc.ModalHeader(dcc.Markdown('**More Information**')),
-            dbc.ModalBody(info_text),
-            dbc.ModalFooter(dbc.Button("Close", id="data-info-close", className="py-0")),
+            dbc.ModalBody(dcc.Markdown(convert_latex(info_text),dangerously_allow_html=True)),
+            dbc.ModalFooter(dbc.Button("Close", id="data-info-close", className="py-0", color='primary')),
         ],
         id="data-info",
-            scrollable=True,
+        scrollable=True,size='lg'
     ),
     ]
 )
@@ -56,7 +64,7 @@ data_select = dbc.Form(
         {"label": "Upload my own", "value":"upload"},
         {"label": "Temperature probes", "value":"probes"},
         {"label": "Fan blade A", "value":"fan_blades_a"},
-        {"label": "Fan blade B", "value":"fan_blades_b"},
+        {"label": "Fan blade C", "value":"fan_blades_c"},
         ],
         value="upload",placeholder="Upload my own",clearable=False,searchable=False)
     ]
@@ -95,22 +103,43 @@ qoi_input = dbc.Row(
         ),width=4
     ),
     dbc.Col(
-        dbc.FormGroup(
+        dbc.Form(
             [
-                dbc.Label('Number of input dimensions:', html_for="report-Xd"),
-                html.Div(id='report-Xd')
-            ],
-        ),width=4
+            dbc.FormGroup(
+                [
+                dbc.Label('Number of input dimensions:', html_for="report-Xd",width=9),
+                dbc.Col(html.Div(id='report-Xd'),width=3)
+                ], row=True
+            ),
+            dbc.FormGroup(
+                [
+                dbc.Label('Number of output dimensions:', html_for="report-yd",width=9),
+                dbc.Col(html.Div(id='report-yd'),width=3)
+                ], row=True
+            ),
+            ]
+        ), width=4
     ),
     dbc.Col(
-        dbc.FormGroup(
+        dbc.Form(
             [
-                dbc.Label('Number of output dimensions:', html_for="report-yd"),
-                html.Div(id='report-yd')
-            ],
-        ),width=4
-    ), 
-    ]#,id='qoi-form',style={'display':'none'}
+            dbc.FormGroup(
+                [
+                dbc.Label('Number of training samples:', html_for="report-train",width=9),
+                dbc.Col(html.Div(id='report-train'),width=3)
+                ], row=True
+            ),
+            dbc.FormGroup(
+                [
+                dbc.Label('Number of test samples:', html_for="report-test",width=9),
+                dbc.Col(html.Div(id='report-test'),width=3)
+                ], row=True
+            ),
+            ]
+        ), width=4
+    ),
+
+    ]
 )
 
 data_card = dbc.Card(
@@ -436,6 +465,24 @@ def load_csv(content, data_option, filename):
         cols = ['Hole ellipse','Hole fwd/back','Hole angle','Kiel lip','Kiel outer','Kiel inner','Hole diam.','Recovery ratio objective']
         df = pd.DataFrame(data=data, columns=cols)
         bin_msg = False
+    # Fan blade A
+    elif data_option == 'fan_blades_a':
+        data = eq.datasets.load_eq_dataset('3Dfan_blades')
+        data = np.hstack([data['X_a'],data['y2_a'].reshape(-1,1)])
+        cols = ['X_%d' %j for j in range(25)]
+        cols.append('Pressure ratio')
+        df = pd.DataFrame(data=data, columns=cols)
+        bin_msg = False
+    # Fan blade B
+    elif data_option == 'fan_blades_c':
+        data = eq.datasets.load_eq_dataset('3Dfan_blades')
+        data = np.hstack([data['X_c'],data['y1_c'].reshape(-1,1)])
+        cols = ['X_%d' %j for j in range(25)]
+        cols.append('Efficiency')
+        df = pd.DataFrame(data=data, columns=cols)
+        bin_msg = False
+
+
     # Create a datatable
     if df is not None:
         data=df.to_dict('records')
@@ -454,23 +501,11 @@ def populate_qoi(columns,data_option):
     if data_option == 'upload':
         options = [{'label': i['name'], 'value': i['name']} for i in columns]
         value = None
-    elif data_option == 'probes':
+    else:
         output = columns[-1]['name']
         options = [{'label': output, 'value': output}]
         value = output
     return options, value
-
-# callback to report number of dimensions
-@app.callback(Output('report-Xd','children'),
-        Output('report-yd','children'),
-        Input('upload-data-table', 'columns'),
-        Input('qoi-select','value'),
-        prevent_initial_call=True)
-def report_dims(cols,qoi):
-    if qoi is None:
-        return str(len(cols)), str(0)
-    else:
-        return str(len(cols)-1),str(1)
 
 # callback to compute subspace
 @app.callback(Output('compute-finished','children'),
@@ -666,9 +701,14 @@ def display_summary_plot(subspace_data,qoi,twod):
                 y_poly = np.reshape(y_poly, (N, N))
                 color = np.zeros([N,N]) # horrible hack to set fixed surface color
                 colorscale = [[0,'rgb(178,34,34)'],[1,'rgb(0,0,0)']]
-                fig.add_trace(go.Surface(x=u11,y=u22,z=y_poly,opacity=0.4,name='Ridge profile',
+                fig.add_trace(go.Surface(x=u11,y=u22,z=y_poly,opacity=0.5,name='Ridge profile',
                     surfacecolor=color,colorscale=colorscale,cmin=0,cmax=1,showscale=False))
-
+#                fig.add_trace(go.Surface(x=u11,y=u22,z=y_poly,opacity=0.5,name='Ridge profile',
+#                    surfacecolor=y_poly,showscale=True,
+#                    contours_z=dict(show=True, usecolormap=True,
+#                                  highlightcolor="limegreen", project_z=True,
+#                                  start=y_poly.min(),end=y_poly.max(),size=(y_poly.max()-y_poly.min())/(20))))
+#
         else: # 1D summary plot
             # Plot training samples
             u_train = X_train @ W
@@ -713,7 +753,7 @@ def populate_W_dropdown(subdim):
         )
 def display_W_plot(subspace_data,to_plot,cols):
         # layout
-        layout={"xaxis": {"title": 'Input variables'}, "yaxis": {"title": r'$w_{%dj}$' %(to_plot+1)},'margin':{'t':0,'r':0,'l':0,'b':0},
+        layout={"xaxis": {"title": 'Input variables'}, "yaxis": {"title": r'$w_{%dj}$' %(to_plot+1)},'margin':{'t':0,'r':0,'l':0,'b':60},
                 'paper_bgcolor':'white','plot_bgcolor':'white','autosize':True}
         fig = go.Figure(layout=layout)
         fig.update_xaxes(color='black',linecolor='black',showline=True,tickcolor='black',ticks='outside')
@@ -838,3 +878,53 @@ def download_scaler(n_clicks,subspace_data):
     # Pickle
     obj = pickle.dumps(scaler)
     return dcc.send_bytes(obj,'scaler.pickle')
+
+###################################################################
+# Limit data size
+###################################################################
+# Callback to limit rows
+@app.callback(Output('compute-subspace','disabled'),  
+    Output('report-train','children'),
+    Output('report-test','children'),
+    Output('report-train','style'),
+    Output('report-test','style'),
+    Output('report-Xd','children'),
+    Output('report-yd','children'),
+    Output('report-Xd','style'),
+    Output('report-yd','style'),
+    Input('traintest-slider','value'),
+    Input('upload-data-table', 'data'),
+    Input('upload-data-table', 'columns'),
+    Input('qoi-select','value'),
+    prevent_initial_call=True)
+def check_size(test_split,data,cols,qoi):
+    MAX_ROWS = 2000
+    MAX_D = 50
+
+    # Number of rows
+    N = len(data)
+    test_split = float(test_split/100)
+    Ntest = math.ceil(N*test_split)
+    Ntrain = N-Ntest
+
+    # Number of dims
+    d = len(cols)
+    if qoi is None:
+        Xd = d
+        yd = 0
+    else:
+        Xd = d-1
+        yd = 1
+
+    # check dataset size
+    toobig = False
+    Ncolor = 'black'
+    Dcolor = 'black'
+    if Ntrain > MAX_ROWS: 
+        toobig = True
+        Ncolor = 'red'
+    if d > MAX_D: 
+        toobig = True
+        Dcolor = 'red'
+
+    return toobig, str(Ntrain), str(Ntest), {'color':Ncolor}, {'color':'black'}, str(Xd), str(yd), {'color':Dcolor}, {'color':'black'}
