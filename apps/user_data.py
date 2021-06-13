@@ -23,6 +23,38 @@ from utils import convert_latex
 from app import app
 
 ###################################################################
+# Setup cache (simple cache if locally run, otherwise configured
+# to use memcachier on heroku)
+###################################################################
+cache_servers = os.environ.get('MEMCACHIER_SERVERS')
+if cache_servers == None:
+    # Fall back to simple in memory cache (development)
+    cache = Cache(app.server,config={'CACHE_TYPE': 'SimpleCache'})
+else:
+    cache_user = os.environ.get('MEMCACHIER_USERNAME') or ''
+    cache_pass = os.environ.get('MEMCACHIER_PASSWORD') or ''
+    cache = Cache(app.server,
+        config={'CACHE_TYPE': 'SASLMemcachedCache',
+                'CACHE_MEMCACHED_SERVERS': cache_servers.split(','),
+                'CACHE_MEMCACHED_USERNAME': cache_user,
+                'CACHE_MEMCACHED_PASSWORD': cache_pass,
+                'CACHE_OPTIONS': { 'behaviors': {
+                    # Faster IO
+                    'tcp_nodelay': True,
+                    # Keep connection alive
+                    'tcp_keepalive': True,
+                    # Timeout for set/get requests
+                    'connect_timeout': 2000, # ms
+                    'send_timeout': 750 * 1000, # us
+                    'receive_timeout': 750 * 1000, # us
+                    '_poll_timeout': 2000, # ms
+                    # Better failover
+                    'ketama': True,
+                    'remove_failed': 1,
+                    'retry_timeout': 2,
+                    'dead_timeout': 30}}})
+
+###################################################################
 # Collapsable more info card
 ###################################################################
 info_text = r'''
@@ -30,7 +62,6 @@ Upload your data in *.csv* format using the **Load Data** card. Take note of the
 - The data must in standard *wide-format* i.e. with each row representing an observation/sample. 
 - There must be no NaN's or empty cells.
 - For computational cost purposes datasets are currently capped at $N=2000$ rows and $d=50$ input dimensions. For guidance on handling larger datasets checkout the [docs](https://equadratures.org/) or [get in touch](https://discourse.equadratures.org/).
-- The variable projection algo is nondeterministic. If you get bad $R^2$ scores, try again!
 - Particularly when higher polynomial orders are selected, monitor the test $R^2$ score to check for *over-fitting*.
 - If the $R^2$ scores are low, try to vary the polynomial order and number of subspace dimensions.
 
@@ -507,6 +538,16 @@ def populate_qoi(columns,data_option):
         value = output
     return options, value
 
+##################################################################
+# Function to compute subspace
+###################################################################
+# This function is moderately time consuming so memoize it
+@cache.memoize(timeout=600)
+def compute_subspace_memoize(X_train, y_train, method, order, subdim):
+    subspace = eq.Subspaces(method=method,sample_points=X_train,sample_outputs=y_train,
+            polynomial_degree=order, subspace_dimension=subdim)
+    return jsonpickle.encode(subspace)
+
 # callback to compute subspace
 @app.callback(Output('compute-finished','children'),
         Output('compute-warning','is_open'),
@@ -554,11 +595,11 @@ def compute_subspace(n_clicks,data,cols,qoi,method,order,subdim,test_split):
             # Train/test split
             test_split /= 100
             X_train, X_test, y_train, y_test = eq.datasets.train_test_split(X, y,
-                                   train=float(1-test_split))
+                                   train=float(1-test_split),random_seed=42)
  
             # Compute subspace
-            subspace = eq.Subspaces(method=method,sample_points=X_train,sample_outputs=y_train,
-                    polynomial_degree=order, subspace_dimension=subdim)
+            pickled = compute_subspace_memoize(X_train, y_train, method, order, subdim)
+            subspace = jsonpickle.decode(pickled)
 
             # compute scores
             subpoly = subspace.get_subspace_polynomial()
