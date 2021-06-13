@@ -77,7 +77,7 @@ home_text = dcc.Markdown(convert_latex(home_text), dangerously_allow_html=True, 
 
 # disclaimer message
 final_details = r'''
-This app is currently hosted *on the cloud* via a free [Heroku dyno](https://www.heroku.com/dynos). It can take a while to boot up, and can be slow when there are multiple users. If it is too slow please do come back later! 
+This app is currently hosted *on the cloud* via a free [Heroku dyno](https://www.heroku.com/dynos). It can take a while to boot up, and can be slow when there are multiple users. If it is too slow please come back later! 
 
 Please report any bugs to [ascillitoe@effective-quadratures.org](mailto:ascillitoe@effective-quadratures.org).
 '''

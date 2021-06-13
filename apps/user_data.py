@@ -61,7 +61,7 @@ info_text = r'''
 Upload your data in *.csv* format using the **Load Data** card. Take note of the following:
 - The data must in standard *wide-format* i.e. with each row representing an observation/sample. 
 - There must be no NaN's or empty cells.
-- For computational cost purposes datasets are currently capped at $N=2000$ rows and $d=50$ input dimensions. For guidance on handling larger datasets checkout the [docs](https://equadratures.org/) or [get in touch](https://discourse.equadratures.org/).
+- For computational cost purposes datasets are currently capped at $N=600$ rows and $d=30$ input dimensions. For guidance on handling larger datasets checkout the [docs](https://equadratures.org/) or [get in touch](https://discourse.equadratures.org/).
 - Particularly when higher polynomial orders are selected, monitor the test $R^2$ score to check for *over-fitting*.
 - If the $R^2$ scores are low, try to vary the polynomial order and number of subspace dimensions.
 
@@ -228,7 +228,7 @@ method_dropdown = dbc.FormGroup(
 order_slider = dbc.FormGroup(
     [
         dbc.Label('Polynomial order', html_for="order-slider"),
-        dcc.Slider(id='order-slider',min=1, max=4,value=1,
+        dcc.Slider(id='order-slider',min=1, max=3,value=1,
             tooltip = { 'always_visible': True, 'placement': 'bottom' }
         )
     ]
@@ -237,7 +237,7 @@ order_slider = dbc.FormGroup(
 subdim_slider = dbc.FormGroup(
     [
         dbc.Label('Subspace dimensions', html_for="subdim-slider"),
-        dcc.Slider(id='subdim-slider',min=1, max=5,value=1,
+        dcc.Slider(id='subdim-slider',min=1, max=3,value=1,
             tooltip = { 'always_visible': True, 'placement': 'bottom' }
         )
     ]
@@ -939,8 +939,8 @@ def download_scaler(n_clicks,subspace_data):
     Input('qoi-select','value'),
     prevent_initial_call=True)
 def check_size(test_split,data,cols,qoi):
-    MAX_ROWS = 2000
-    MAX_D = 50
+    MAX_ROWS = 600
+    MAX_D = 30
 
     # Number of rows
     N = len(data)
