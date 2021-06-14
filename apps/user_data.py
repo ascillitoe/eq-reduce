@@ -720,12 +720,20 @@ def display_summary_plot(subspace_data,qoi,twod):
 
         if twod: # 2D summary plot
             # Training
+            if y_train.size > 200: #subsample for speed
+                idx = np.random.choice(y_train.size,100,replace=False)
+                X_train = X_train[idx,:]
+                y_train = y_train[idx]
             u_train = (X_train @ W)
             fig.add_trace(go.Scatter3d(x=u_train[:,0],y=u_train[:,1],z=y_train,mode='markers',name='Training samples',
                 marker=dict(size=10,color="rgb(135, 206, 250)",opacity=0.6,line=dict(color='rgb(0,0,0)',width=1))
             ))
             # Test
             if y_test.size > 0:
+                if y_test.size > 200: #subsample for speed
+                    idx = np.random.choice(y_test.size,100,replace=False)
+                    X_test = X_test[idx,:]
+                    y_test = y_test[idx]
                 u_test = X_test @ W
                 fig.add_trace(go.Scatter3d(x=u_test[:,0],y=u_test[:,1],z=y_test,mode='markers',name='Test samples',
                     marker=dict(size=10,color="rgb(144, 238, 144)",opacity=0.6,line=dict(color='rgb(0,0,0)',width=1))
@@ -754,21 +762,21 @@ def display_summary_plot(subspace_data,qoi,twod):
             # Plot training samples
             u_train = X_train @ W
             if subdim > 1: u_train = u_train[:,0]
-            fig.add_trace(go.Scatter(x=u_train.flatten(),y=y_train,mode='markers',name='Training samples',
-                marker=dict(color='LightSkyBlue',size=15,opacity=0.5,line=dict(color='black',width=1))
+            fig.add_trace(go.Scattergl(x=u_train.flatten(),y=y_train,mode='markers',name='Training samples',
+                marker=dict(color='rgb(135,206,250)',size=15,opacity=0.5,line=dict(color='rgb(0,0,0)',width=1))
             ))
             # Plot test samples
             if y_test.size > 0:
                 u_test = X_test @ W
                 if subdim > 1: u_test = u_test[:,0]
-                fig.add_trace(go.Scatter(x=u_test.flatten(),y=y_test,mode='markers',name='Test samples',
-                    marker=dict(color='lightgreen',size=15,opacity=0.5,line=dict(color='black',width=1))
+                fig.add_trace(go.Scattergl(x=u_test.flatten(),y=y_test,mode='markers',name='Test samples',
+                    marker=dict(color='rgb(144,238,144)',size=15,opacity=0.5,line=dict(color='rgb(0,0,0)',width=1))
                 ))
             # Plot poly
             if subdim == 1:
                 u_poly = np.linspace(np.min(u_train)-0.25,np.max(u_train)+0.25,50)
                 y_poly = subpoly.get_polyfit(u_poly.reshape(-1,1))
-                fig.add_trace(go.Scatter(x=u_poly,y=y_poly.flatten(),mode='lines',name='Ridge profile',line_width=4,line_color='firebrick' ))
+                fig.add_trace(go.Scattergl(x=u_poly,y=y_poly.flatten(),mode='lines',name='Ridge profile',line_width=4,line_color='rgb(178,34,34)' ))
 
         # TODO - rescale X, and add this info to scatter points for user to hover over (if possible)
     return fig
