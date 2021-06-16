@@ -36,13 +36,13 @@ ypred = np.empty(len(pts))
 
 # Load poly coeffs etc
 coeffs = np.load(os.path.join(dataloc,'coeffs.npy'))
-lowers = np.load(os.path.join(dataloc,'lowers.npy'))
-uppers = np.load(os.path.join(dataloc,'uppers.npy'))
+lowers = np.load(os.path.join(dataloc,'lowers.npy'),mmap_mode='r')
+uppers = np.load(os.path.join(dataloc,'uppers.npy'),mmap_mode='r')
 W      = np.load(os.path.join(dataloc,'W.npy'))
 var_name = [r'$C_p$',r'$\nu_t/\nu$',r'$u/U_{\infty}$',r'$v/U_{\infty}$']
 
 # Load training data to plot on summary plots
-X = np.load(os.path.join(dataloc,'X.npy'))
+X = np.load(os.path.join(dataloc,'X.npy'),mmap_mode='r')
 Y = np.load(os.path.join(dataloc,'Y.npy'),mmap_mode='r')
 X = standardise(X)
 
