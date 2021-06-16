@@ -650,7 +650,7 @@ def disable_summarytoggle(twod):
     if twod:
         return ('Leading two *active variables* plotted')
     else:
-        return ('Leading *active variables* plotted')
+        return ('Leading *active variable* plotted')
 
 ###################################################################
 # Sufficient summary plot

@@ -15,7 +15,7 @@ from utils import deform_airfoil, eval_poly, standardise, get_samples_constraini
 
 from app import app
 
-ncores = cpu_count()
+ncores = 2 #cpu_count()
 
 ###################################################################
 # Load data
