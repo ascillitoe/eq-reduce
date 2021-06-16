@@ -16,8 +16,8 @@ new_dir  = os.path.join(pwd,new_dir)
 
 # Load baseline mesh (and subsample)
 basegrid = pv.read(os.path.join(orig_dir,'basegrid.vtk'))
-xskip = 3
-yskip = 2
+xskip = 5
+yskip = 3
 nx,ny,_ = basegrid.dimensions
 npts = int(nx*ny)
 idx = np.arange(npts).reshape(nx,ny,order='F')[::yskip,::xskip].T
