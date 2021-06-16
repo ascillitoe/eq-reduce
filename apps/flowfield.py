@@ -43,7 +43,7 @@ var_name = [r'$C_p$',r'$\nu_t/\nu$',r'$u/U_{\infty}$',r'$v/U_{\infty}$']
 
 # Load training data to plot on summary plots
 X = np.load(os.path.join(dataloc,'X.npy'))
-Y = np.load(os.path.join(dataloc,'Y.npy'))
+Y = np.load(os.path.join(dataloc,'Y.npy'),mmap_mode='r')
 X = standardise(X)
 
 ###################################################################
