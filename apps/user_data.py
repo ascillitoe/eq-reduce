@@ -370,7 +370,7 @@ other_results_card = dbc.Card(dbc.Tabs(
         labelClassName='custom-tablabel',activeLabelClassName='custom-tablabel--selected'),
 
     ],
-    className='custom-tabs'
+    className='custom-tabs', id='user-data-tabs'
 ))
 
 

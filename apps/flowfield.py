@@ -248,7 +248,7 @@ visual_tabs = dbc.Card(
                 labelClassName='custom-tablabel',activeLabelClassName='custom-tablabel--selected'),
 
         ],   
-    className='custom-tabs'
+    className='custom-tabs', id='flow-tabs'
     ), style={'height':'70vh'}
 )
 
