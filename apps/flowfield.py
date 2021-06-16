@@ -10,12 +10,12 @@ import plotly.graph_objs as go
 import os
 import numpy as np
 import equadratures as eq
-from joblib import Parallel, delayed, cpu_count
+#from joblib import Parallel, delayed, cpu_count
 from utils import deform_airfoil, eval_poly, standardise, get_samples_constraining_active_coordinates, get_airfoils, airfoil_mask, convert_latex
 
 from app import app
 
-ncores = 2 #cpu_count()
+#ncores = 2 #cpu_count()
 
 ###################################################################
 # Load data
@@ -35,10 +35,10 @@ pts = np.arange(npts)
 ypred = np.empty(len(pts))
 
 # Load poly coeffs etc
-coeffs = np.load(os.path.join(dataloc,'coeffs.npy'))
+coeffs = np.load(os.path.join(dataloc,'coeffs.npy'),mmap_mode='r')
 lowers = np.load(os.path.join(dataloc,'lowers.npy'),mmap_mode='r')
 uppers = np.load(os.path.join(dataloc,'uppers.npy'),mmap_mode='r')
-W      = np.load(os.path.join(dataloc,'W.npy'))
+W      = np.load(os.path.join(dataloc,'W.npy'),mmap_mode='r')
 var_name = [r'$C_p$',r'$\nu_t/\nu$',r'$u/U_{\infty}$',r'$v/U_{\infty}$']
 
 # Load training data to plot on summary plots
@@ -285,7 +285,9 @@ layout = dbc.Container(
 # This function is moderately time consuming so memoize it
 @cache.memoize(timeout=600)
 def compute_flowfield(design_vec,var):
-    ypred = np.array(Parallel(n_jobs=ncores,verbose=1,)(delayed(eval_poly)(design_vec,lowers[pt,var],uppers[pt,var],coeffs[pt,var,:],W[pt,var,:,:]) for pt in pts))
+#    ypred = np.array(Parallel(n_jobs=ncores,verbose=1,)(delayed(eval_poly)(design_vec,lowers[pt,var],uppers[pt,var],coeffs[pt,var,:],W[pt,var,:,:]) for pt in pts))
+    for pt in pts:
+        ypred[pt] = eval_poly(design_vec,lowers[pt,var],uppers[pt,var],coeffs[pt,var,:],W[pt,var,:,:]) 
     return ypred
 
 ###################################################################
