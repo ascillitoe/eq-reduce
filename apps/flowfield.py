@@ -466,7 +466,7 @@ def make_flowfield(n_clicks,airfoil_data,var,show_points):
     changed_id = [p['prop_id'] for p in dash.callback_context.triggered][0]
     if 'compute-flowfield' in changed_id:
         try:
-            ypred = func_timeout(29,compute_flowfield,args=(design_vec,var))
+            ypred = func_timeout(28,compute_flowfield,args=(design_vec,var))
         except FunctionTimedOut:
             return fig, None, True
         fig.add_trace(go.Contour(x=x,y=y,z=ypred.reshape(len(x),len(y)),transpose=True, colorbar=dict(len=0.7),#title=dict(text=var_name[var],side='right')), colorbar title removed for now as doesn't work with latex. (Plotly issue #2231)

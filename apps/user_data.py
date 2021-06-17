@@ -622,7 +622,7 @@ def compute_subspace(n_clicks,data,cols,qoi,method,order,subdim,test_split):
  
             # Compute subspace
             try:
-                pickled = func_timeout(5,compute_subspace_memoize,args=(X_train, y_train, method, order, subdim))
+                pickled = func_timeout(28,compute_subspace_memoize,args=(X_train, y_train, method, order, subdim))
             except FunctionTimedOut:
                 return None, False, None, None, None, None, True
             subspace = jsonpickle.decode(pickled)
