@@ -11,3 +11,4 @@ git+git://github.com/Effective-Quadratures/equadratures@develop#egg=equadratures
 jsonpickle
 gunicorn
 pylibmc
+func-timeout
