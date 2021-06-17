@@ -12,6 +12,7 @@ import numpy as np
 import equadratures as eq
 #from joblib import Parallel, delayed, cpu_count
 from utils import deform_airfoil, eval_poly, standardise, get_samples_constraining_active_coordinates, get_airfoils, airfoil_mask, convert_latex
+from func_timeout import func_timeout, FunctionTimedOut
 
 from app import app
 
@@ -257,6 +258,23 @@ tooltips = html.Div([
     ])
 
 ###################################################################
+# Timout warning
+###################################################################
+timeout_msg = dcc.Markdown(r'''
+**Timeout!**
+
+Sorry! The flowfield computation timed out due to the 30 second time limit imposed by the heroku server. 
+
+This is rare! Please try again later when the server is less busy.
+''')
+
+timeout_warning = dbc.Modal(
+        dbc.ModalBody(timeout_msg, style={'background-color':'rgba(160, 10, 0,0.2)'}),
+    id="flow-timeout",
+    is_open=False,
+)
+
+###################################################################
 # The overall app layout
 ###################################################################
 layout = dbc.Container(
@@ -274,7 +292,8 @@ layout = dbc.Container(
     ),
     dbc.Row(dbc.Col(point_info_card,width=12)),
     dcc.Store(id='airfoil-data'),
-    tooltips
+    tooltips,
+    timeout_warning
     ],
     fluid = True
 )
@@ -419,6 +438,7 @@ def make_graph(xs,amps,surfs):
 @app.callback(
     Output("flowfield-plot", "figure"),
     Output("flowfield-finished", "children"),
+    Output("flow-timeout", "is_open"),
     Input("compute-flowfield", "n_clicks"),
     Input('airfoil-data', 'data'),
     Input('var-select', 'value'),
@@ -436,6 +456,8 @@ def make_flowfield(n_clicks,airfoil_data,var,show_points):
     layout={'clickmode':'event+select','margin':dict(t=0,r=0,l=0,b=0,pad=0),'showlegend':False,"xaxis": {"title": 'x/C'}, "yaxis": {"title": 'y/C'},
             'paper_bgcolor':'white','plot_bgcolor':'white','autosize':False}
     fig = go.Figure(layout=layout)
+    fig.update_xaxes(range=[-0.8, 1.6], showgrid=False, zeroline=False, visible=False)
+    fig.update_yaxes(range=[-0.5822106,0.5001755],scaleanchor = "x", scaleratio = 1, showgrid=False, zeroline=False, visible=False)
 
     # Plot airfoil
     fig.add_trace(go.Scatter(x=airfoil_x,y=airfoil_y,mode='lines',name='Deformed',line_width=8,line_color='blue',fill='tozeroy',fillcolor='rgba(0, 0, 255, 1.0)'))
@@ -443,7 +465,10 @@ def make_flowfield(n_clicks,airfoil_data,var,show_points):
     # Contour plot (if button has just been pressed)
     changed_id = [p['prop_id'] for p in dash.callback_context.triggered][0]
     if 'compute-flowfield' in changed_id:
-        ypred = compute_flowfield(design_vec,var)
+        try:
+            ypred = func_timeout(29,compute_flowfield,args=(design_vec,var))
+        except FunctionTimedOut:
+            return fig, None, True
         fig.add_trace(go.Contour(x=x,y=y,z=ypred.reshape(len(x),len(y)),transpose=True, colorbar=dict(len=0.7),#title=dict(text=var_name[var],side='right')), colorbar title removed for now as doesn't work with latex. (Plotly issue #2231)
             contours=dict(
             start=np.nanmin(ypred),
@@ -458,11 +483,7 @@ def make_flowfield(n_clicks,airfoil_data,var,show_points):
         xx,yy = airfoil_mask(xx,yy,airfoil_x,airfoil_y)
         fig.add_trace(go.Scatter(x=xx.flatten(),y=yy.flatten(),mode='markers',marker_color='black',opacity=0.4,marker_symbol='circle-open',marker_size=6,marker_line_width=2))
 
-    #fig.update_xaxes(range=[-1.12844, 1.830583])
-    fig.update_xaxes(range=[-0.8, 1.6], showgrid=False, zeroline=False, visible=False)
-    fig.update_yaxes(range=[-0.5822106,0.5001755],scaleanchor = "x", scaleratio = 1, showgrid=False, zeroline=False, visible=False)
-
-    return fig, None
+    return fig, None, False
 
 ###################################################################
 # Sufficient summary plot (and W project over airfoil plot)

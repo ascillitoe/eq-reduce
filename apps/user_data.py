@@ -19,6 +19,7 @@ import numpy as np
 import pandas as pd
 import equadratures as eq
 from utils import convert_latex
+from func_timeout import func_timeout, FunctionTimedOut
 
 from app import app
 
@@ -404,6 +405,26 @@ summary_card = dbc.Card(
 )
 
 ###################################################################
+# Timout warning
+###################################################################
+timeout_msg = dcc.Markdown(r'''
+**Timeout!**
+
+Sorry! The subspace computation timed out due to the 30 second time limit imposed by the heroku server. 
+
+You can try:
+- Lowering the polynomial order and/or number of rows in your dataset. 
+- Using variable projection, which might be faster for high dimensional datasets, since it doesn't involve fitting a polynomial in the full space. 
+- Coming back later, when the server might be less busy.
+''')
+
+timeout_warning = dbc.Modal(
+        dbc.ModalBody(timeout_msg, style={'background-color':'rgba(160, 10, 0,0.2)'}),
+    id="subspace-timeout",
+    is_open=False,
+)
+
+###################################################################
 # The overall app layout
 ###################################################################
 layout = dbc.Container(
@@ -428,7 +449,8 @@ layout = dbc.Container(
         ],style={'margin-top':'10px'},
     ),
     dcc.Store(id='subspace-data'),
-#    tooltips
+#    tooltips,
+    timeout_warning
     ],
     fluid = True
 )
@@ -555,6 +577,7 @@ def compute_subspace_memoize(X_train, y_train, method, order, subdim):
         Output('subspace-data','data'),
         Output('r2-train','children'),
         Output('r2-test','children'),
+        Output("subspace-timeout", "is_open"),
         Input('compute-subspace', 'n_clicks'),
         Input('upload-data-table', 'data'),
         Input('upload-data-table', 'columns'),
@@ -570,14 +593,14 @@ def compute_subspace(n_clicks,data,cols,qoi,method,order,subdim,test_split):
     if 'compute-subspace' in changed_id:
         # Check qoi selected
         if qoi is None:
-            return None, True, 'Output variable not selected!', None, None, None
+            return None, True, 'Output variable not selected!', None, None, None, False
         else:
             # Parse data to dataframe
             df = pd.DataFrame.from_records(data)
             # Check for missing values and NaN
             problem = df.isnull().values.any() 
             if problem:
-                return None, True, 'Missing/NaN values in data', None, None, None
+                return None, True, 'Missing/NaN values in data', None, None, None, False
 
             # Get X and y
             y = df.pop(qoi).to_numpy()
@@ -586,7 +609,7 @@ def compute_subspace(n_clicks,data,cols,qoi,method,order,subdim,test_split):
             # Check X and y dimensions
             N,d = X.shape
             if d <= subdim:
-                return None, True, 'The subspace dimension must be less than the original dimensions', None, None, None
+                return None, True, 'The subspace dimension must be less than the original dimensions', None, None, None, False
 
             # TODO - Scale data (TODO - and unscale somewhere)
             scaler = eq.scalers.scaler_minmax()
@@ -598,7 +621,10 @@ def compute_subspace(n_clicks,data,cols,qoi,method,order,subdim,test_split):
                                    train=float(1-test_split),random_seed=42)
  
             # Compute subspace
-            pickled = compute_subspace_memoize(X_train, y_train, method, order, subdim)
+            try:
+                pickled = func_timeout(5,compute_subspace_memoize,args=(X_train, y_train, method, order, subdim))
+            except FunctionTimedOut:
+                return None, False, None, None, None, None, True
             subspace = jsonpickle.decode(pickled)
 
             # compute scores
@@ -620,9 +646,9 @@ def compute_subspace(n_clicks,data,cols,qoi,method,order,subdim,test_split):
             results = jsonpickle.encode(results)
 
             # Return data
-            return None, False, None, results, r2_train, r2_test
+            return None, False, None, results, r2_train, r2_test, False
 
-    return None, False, None, None, None, None
+    return None, False, None, None, None, None, False
 
 # callback to disable eigenvalue tab
 @app.callback(Output('eigen-tab','disabled'),
