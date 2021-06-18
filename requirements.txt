@@ -8,6 +8,7 @@ plotly
 numpy
 pandas
 equadratures==9.1.0
+requests>=2.11.1
 jsonpickle
 gunicorn
 pylibmc
