@@ -9,13 +9,13 @@ The easiest way to run the app is to simply go to [reduce.ascillitoe.com](https:
 
 Alternatively, if you want to run locally, you must first install the full dash stack, and a number of other packages. The full list of requirements for local running can be installed with:
 
-```bash
+```console
 python -m pip install dash dash_core_components dash_html_components dash_daq 
 python -m pip install flask_caching pylibmc plotly numpy pandas equadratures>=9.1.0 jsonpickle func-timeout requests>=2.11.1
 ```
 
 I recommend performing the above in a virtual enviroment such as virtualenv. After installing requirements, the app can be launched with:
 
-```python
+```console
 python index.py
 ```
