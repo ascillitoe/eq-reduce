@@ -7,7 +7,7 @@ flask_caching
 plotly
 numpy
 pandas
-git+git://github.com/Effective-Quadratures/equadratures@develop#egg=equadratures
+equadratures
 jsonpickle
 gunicorn
 pylibmc
