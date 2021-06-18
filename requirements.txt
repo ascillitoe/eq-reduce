@@ -7,7 +7,7 @@ flask_caching
 plotly
 numpy
 pandas
-equadratures
+equadratures==9.1.0
 jsonpickle
 gunicorn
 pylibmc
