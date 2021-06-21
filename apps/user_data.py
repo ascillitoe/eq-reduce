@@ -381,7 +381,7 @@ timeout_msg = dcc.Markdown(r'''
 Sorry! The subspace computation timed out due to the 30 second time limit imposed by the heroku server. 
 
 You can try:
-- Lowering the polynomial order and/or number of rows in your dataset. 
+- Lowering the polynomial order and/or number of rows in your dataset (increasing the test split is a quick way to reduce the number of training rows!). 
 - Using variable projection, which might be faster for high dimensional datasets, since it doesn't involve fitting a polynomial in the full space. 
 - Coming back later, when the server might be less busy.
 ''')
@@ -591,7 +591,7 @@ def compute_subspace(data,cols,qoi,method,order,subdim,test_split):
  
             # Compute subspace
             try:
-                subspace = func_timeout(28,compute_subspace_worker,args=(X_train, y_train, method, order, subdim))
+                subspace = func_timeout(26,compute_subspace_worker,args=(X_train, y_train, method, order, subdim))
             except FunctionTimedOut:
                 return None, False, None, None, None, None, True
 
