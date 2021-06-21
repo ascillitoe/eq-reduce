@@ -130,3 +130,6 @@ dmypy.json
 
 # Directories
 ORIG_DATA/
+
+# cache dir
+tmp/

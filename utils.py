@@ -279,6 +279,14 @@ def airfoil_mask(xx,yy,airfoil_x,airfoil_y):
 
     return xx,yy
 
+def strip_subspace(subspace):
+    '''
+    Strip non-pickle-able objects from subspace
+    '''
+    del subspace.full_space_poly
+
+    return subspace
+
 def convert_latex(text):
     def toimage(x):
         if x[1] and x[-2] == r'$':

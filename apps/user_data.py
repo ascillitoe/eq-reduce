@@ -5,7 +5,8 @@ import dash_bootstrap_components as dbc
 import dash_daq as daq
 import dash_table
 from dash_table.Format import Format, Scheme, Trim
-from dash.dependencies import Input, Output, State, ALL
+#from dash.dependencies import Input, Output, State, ALL
+from dash_extensions.enrich import Dash, ServersideOutput, Output, Input, State, Trigger
 from flask_caching import Cache
 import plotly.graph_objs as go
 
@@ -13,47 +14,14 @@ import os
 import base64
 import io
 import pickle
-import jsonpickle
 import math
 import numpy as np
 import pandas as pd
 import equadratures as eq
-from utils import convert_latex
+from utils import convert_latex, strip_subspace
 from func_timeout import func_timeout, FunctionTimedOut
 
 from app import app
-
-###################################################################
-# Setup cache (simple cache if locally run, otherwise configured
-# to use memcachier on heroku)
-###################################################################
-cache_servers = os.environ.get('MEMCACHIER_SERVERS')
-if cache_servers == None:
-    # Fall back to simple in memory cache (development)
-    cache = Cache(app.server,config={'CACHE_TYPE': 'SimpleCache'})
-else:
-    cache_user = os.environ.get('MEMCACHIER_USERNAME') or ''
-    cache_pass = os.environ.get('MEMCACHIER_PASSWORD') or ''
-    cache = Cache(app.server,
-        config={'CACHE_TYPE': 'SASLMemcachedCache',
-                'CACHE_MEMCACHED_SERVERS': cache_servers.split(','),
-                'CACHE_MEMCACHED_USERNAME': cache_user,
-                'CACHE_MEMCACHED_PASSWORD': cache_pass,
-                'CACHE_OPTIONS': { 'behaviors': {
-                    # Faster IO
-                    'tcp_nodelay': True,
-                    # Keep connection alive
-                    'tcp_keepalive': True,
-                    # Timeout for set/get requests
-                    'connect_timeout': 2000, # ms
-                    'send_timeout': 750 * 1000, # us
-                    'receive_timeout': 750 * 1000, # us
-                    '_poll_timeout': 2000, # ms
-                    # Better failover
-                    'ketama': True,
-                    'remove_failed': 1,
-                    'retry_timeout': 2,
-                    'dead_timeout': 30}}})
 
 ###################################################################
 # Collapsable more info card
@@ -564,21 +532,22 @@ def populate_qoi(columns,data_option):
 # Function to compute subspace
 ###################################################################
 # This function is moderately time consuming so memoize it
-@cache.memoize(timeout=600)
-def compute_subspace_memoize(X_train, y_train, method, order, subdim):
+#@cache.memoize(timeout=600)
+def compute_subspace_worker(X_train, y_train, method, order, subdim):
     subspace = eq.Subspaces(method=method,sample_points=X_train,sample_outputs=y_train,
             polynomial_degree=order, subspace_dimension=subdim)
-    return jsonpickle.encode(subspace)
+    subspace = strip_subspace(subspace)
+    return subspace
 
 # callback to compute subspace
 @app.callback(Output('compute-finished','children'),
         Output('compute-warning','is_open'),
         Output('compute-warning','children'),
-        Output('subspace-data','data'),
+        ServersideOutput('subspace-data','data'),
         Output('r2-train','children'),
         Output('r2-test','children'),
         Output("subspace-timeout", "is_open"),
-        Input('compute-subspace', 'n_clicks'),
+        Trigger('compute-subspace', 'n_clicks'),
         Input('upload-data-table', 'data'),
         Input('upload-data-table', 'columns'),
         Input('qoi-select','value'),
@@ -587,7 +556,7 @@ def compute_subspace_memoize(X_train, y_train, method, order, subdim):
         Input('subdim-slider','value'),
         Input('traintest-slider','value'),
         prevent_initial_call=True)
-def compute_subspace(n_clicks,data,cols,qoi,method,order,subdim,test_split):
+def compute_subspace(data,cols,qoi,method,order,subdim,test_split):
     # Compute subspace (if button has just been pressed)
     changed_id = [p['prop_id'] for p in dash.callback_context.triggered][0]
     if 'compute-subspace' in changed_id:
@@ -622,10 +591,9 @@ def compute_subspace(n_clicks,data,cols,qoi,method,order,subdim,test_split):
  
             # Compute subspace
             try:
-                pickled = func_timeout(28,compute_subspace_memoize,args=(X_train, y_train, method, order, subdim))
+                subspace = func_timeout(28,compute_subspace_worker,args=(X_train, y_train, method, order, subdim))
             except FunctionTimedOut:
                 return None, False, None, None, None, None, True
-            subspace = jsonpickle.decode(pickled)
 
             # compute scores
             subpoly = subspace.get_subspace_polynomial()
@@ -643,7 +611,6 @@ def compute_subspace(n_clicks,data,cols,qoi,method,order,subdim,test_split):
             subspace.test_points = X_test
             subspace.test_outputs = y_test
             results = {'scaler':scaler,'subspace':subspace}
-            results = jsonpickle.encode(results)
 
             # Return data
             return None, False, None, results, r2_train, r2_test, False
@@ -686,7 +653,7 @@ def disable_summarytoggle(twod):
     Input('qoi-select', 'value'),
     Input('toggle-summary', 'value'),
     )
-def display_summary_plot(subspace_data,qoi,twod):
+def display_summary_plot(results,qoi,twod):
     if qoi is None: qoi = ''
 
     # Layout
@@ -731,9 +698,8 @@ def display_summary_plot(subspace_data,qoi,twod):
         fig.update_xaxes(color='black',linecolor='black',showline=True,tickcolor='black',ticks='outside')
         fig.update_yaxes(color='black',linecolor='black',showline=True,tickcolor='black',ticks='outside')
 
-    if subspace_data is not None:
+    if results is not None:
         # Parse data
-        results = jsonpickle.decode(subspace_data)
         scaler = results['scaler']
         subspace = results['subspace']
         X_train = subspace.sample_points
@@ -826,7 +792,7 @@ def populate_W_dropdown(subdim):
         Input('W-select','value'),
         Input('upload-data-table', 'columns'),
         )
-def display_W_plot(subspace_data,to_plot,cols):
+def display_W_plot(results,to_plot,cols):
         # layout
         layout={"xaxis": {"title": 'Input variables'}, "yaxis": {"title": r'$w_{%dj}$' %(to_plot+1)},'margin':{'t':0,'r':0,'l':0,'b':60},
                 'paper_bgcolor':'white','plot_bgcolor':'white','autosize':True}
@@ -835,8 +801,7 @@ def display_W_plot(subspace_data,to_plot,cols):
         fig.update_yaxes(color='black',linecolor='black',showline=True,tickcolor='black',ticks='outside',zerolinecolor='lightgrey')
     
         # Parse results
-        if subspace_data is not None:
-            results = jsonpickle.decode(subspace_data)
+        if results is not None:
             subspace = results['subspace']
             w = subspace.get_subspace()[:,to_plot]
             names = [col['name'] for col in cols]
@@ -856,7 +821,7 @@ def display_W_plot(subspace_data,to_plot,cols):
         Input('subspace-data','data'),
         Input('method-select','value'),
         )
-def display_eigen_plot(subspace_data,method):
+def display_eigen_plot(results,method):
         if method=='active-subspace':
             # layout
             layout={"xaxis": {"title": r'$i$'}, "yaxis": {"title": r'$\lambda_i$'},'margin':{'t':0,'r':0,'l':0,'b':60},
@@ -866,8 +831,7 @@ def display_eigen_plot(subspace_data,method):
             fig.update_yaxes(color='black',linecolor='black',showline=True,tickcolor='black',ticks='outside',zerolinecolor='lightgrey')
     
             # Parse results
-            if subspace_data is not None:
-                results = jsonpickle.decode(subspace_data)
+            if results is not None:
                 subspace = results['subspace']
                 lambdas = subspace.get_eigenvalues()
                 i = np.arange(len(lambdas)) + 1
@@ -892,8 +856,8 @@ def display_eigen_plot(subspace_data,method):
     Input('subspace-data', 'data'), #TODO - is there a better way to do this which avoids passing entire dataset? Could just base on compute-subspace click, but then download buttons become active even if compute failed
     prevent_initial_call=True,
 )
-def disable_downloads(subspace_data):
-    if subspace_data is None:
+def disable_downloads(results):
+    if results is None:
         return True, True, True
     else:
         return False,False,False
@@ -906,9 +870,8 @@ def disable_downloads(subspace_data):
     State("qoi-select",'value'),
     prevent_initial_call=True,
 )
-def download_csv(n_clicks,subspace_data,qoi):
+def download_csv(n_clicks,results,qoi):
     # Parse data
-    results = jsonpickle.decode(subspace_data)
     subspace = results['subspace']
     X_train = subspace.sample_points
     y_train = subspace.sample_outputs
@@ -931,9 +894,8 @@ def download_csv(n_clicks,subspace_data,qoi):
     State("subspace-data",'data'),
     prevent_initial_call=True,
 )
-def download_subspace(n_clicks,subspace_data):
+def download_subspace(n_clicks,results):
     # Parse data
-    results = jsonpickle.decode(subspace_data)
     subspace = results['subspace']
     # Pickle
     obj = pickle.dumps(subspace)
@@ -946,9 +908,8 @@ def download_subspace(n_clicks,subspace_data):
     State("subspace-data",'data'),
     prevent_initial_call=True,
 )
-def download_scaler(n_clicks,subspace_data):
+def download_scaler(n_clicks,results):
     # Parse data
-    results = jsonpickle.decode(subspace_data)
     scaler = results['scaler']
     # Pickle
     obj = pickle.dumps(scaler)

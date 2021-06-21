@@ -1,8 +1,11 @@
-import dash
+from dash_extensions.enrich import Dash, FileSystemStore
 import dash_bootstrap_components as dbc
 import os
 
-app = dash.Dash(__name__, suppress_callback_exceptions=True,
+os.makedirs("tmp/", exist_ok=True)
+output_defaults=dict(backend=FileSystemStore(cache_dir="tmp/",threshold=100), session_check=True)
+
+app = Dash(__name__, suppress_callback_exceptions=True, output_defaults=output_defaults,
         external_stylesheets=[dbc.themes.SPACELAB, 'https://codepen.io/chriddyp/pen/bWLwgP.css'],
         external_scripts=["https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?config=TeX-MML-AM_CHTML" ])
 app.title = "Dimension reduction with equadratures"
