@@ -85,6 +85,21 @@ final_details = dbc.Alert(dcc.Markdown(final_details),
         dismissable=True,is_open=True,color='info',style={'padding-top':'0.4rem','padding-bottom':'0.0rem'})
 
 
+msg_404 = r'''
+**Oooops** 
+
+Looks like you might have taken a wrong turn!
+'''
+
+container_404 = dbc.Container([ 
+    dbc.Row(
+            [
+                dcc.Markdown(msg_404,style={'text-align':'center'})
+            ], justify="center", align="center", className="h-100"
+    )
+],style={"height": "90vh"}
+)
+
 ###################################################################
 # Footer
 ###################################################################
@@ -95,7 +110,7 @@ footer = html.Div(
             html.P(html.A('ascillitoe.com',href='https://ascillitoe.com')),
             html.P('Copyright © 2021')
         ]
-    ,className='footer'
+    ,className='footer', id='footer'
 )
 
 ###################################################################
@@ -117,16 +132,17 @@ app.layout = html.Div(
 # Callback to return page requested in navbar
 ###################################################################
 @app.callback(Output('page-content', 'children'),
-              [Input('url', 'pathname')])
+    Output('footer','style'),
+    Input('url', 'pathname'))
 def display_page(pathname):
     if pathname == '/':
-        return homepage
+        return homepage, {'display':'block'}
     if pathname == '/flowfield':
-        return flowfield.layout
+        return flowfield.layout, {'display':'block'}
     elif pathname == '/datadriven':
-        return user_data.layout
+        return user_data.layout, {'display':'block'}
     else:
-        return '404'
+        return container_404, {'display':'none'}
 
 ###################################################################
 # Run server
