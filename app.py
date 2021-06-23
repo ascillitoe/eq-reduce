@@ -1,5 +1,6 @@
 from dash_extensions.enrich import Dash, FileSystemStore
 import dash_bootstrap_components as dbc
+from whitenoise import WhiteNoise
 import os
 
 os.makedirs("tmp/", exist_ok=True)
@@ -12,3 +13,5 @@ app.title = "Dimension reduction with equadratures"
 
 server = app.server
 server.secret_key = os.environ.get('secret_key', 'secret')
+# To serve static files (e.g. images etc)
+server.wsgi_app = WhiteNoise(server.wsgi_app, root='static/')

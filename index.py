@@ -24,10 +24,18 @@ In other words, we assume that our quantities of interest are well--approximated
 
 $$f(\mathbf{x}) \approx g(\mathbf{W}^T \mathbf{x}),$$
 
-where $g:\mathbb{R}^n \rightarrow \mathbb{R}$ is a low-dimensional non-linear function called the *ridge profile*. The intuitive computational advantage behind *ridge approximations* is that instead of estimating a function in $\mathbb{R}^d$, we approximate it in $\mathbb{R}^n$, which also facilitates easy visualisation. The *equadratures* code uses orthogonal polynomials to represent $g$, and so identifying ridge functions consists of computing coefficients for $g$ as well as identifying a suitable subspace matrix $\mathbf{W}$. Two techniques are avaiable for this in the code, *active subspaces* and *variable projection*.
+where $g:\mathbb{R}^n \rightarrow \mathbb{R}$ is a low-dimensional non-linear function called the *ridge profile*. The intuitive computational advantage behind *ridge approximations* is that instead of estimating a function in $\mathbb{R}^d$, we approximate it in $\mathbb{R}^n$, which also facilitates easy visualisation. In figure b) below, a ridge approximation is obtained for a turbo-machinery dataset \[1], demonstrating how a low dimensional approximation can be obtained with a suitable $\mathbf{W}$ matrix.
+
+
+<figure style="width:80%">
+<img alt="Sun" src="ridge_figure.png" />
+</figure>
+
+The *equadratures* code uses orthogonal polynomials to represent $g$, and so identifying ridge functions consists of computing coefficients for $g$ as well as identifying a suitable subspace matrix $\mathbf{W}$. Two techniques are avaiable for this in the code, *active subspaces* and *variable projection*.
+
 
 #### Active Subspaces
-The active subspaces approach, introduced in \[1], involves estimating a covariance matrix using the gradient of a polynomial approximation
+The active subspaces approach, introduced in \[2], involves estimating a covariance matrix using the gradient of a polynomial approximation
 
 $$\mathbf{C} = \int_{\mathcal{X}} \nabla_{\mathbf{x}} g(\mathbf{x}) \nabla_{\mathbf{x}} g(\mathbf{x})^T\,\tau~d\mathbf{x},$$
 
@@ -35,7 +43,7 @@ where $\tau = 2^{-d}$ defines a uniform distribution over the $d$-dimensional hy
 
 $$\mathbf{C} = [\mathbf{W} \; \mathbf{V}] \begin{bmatrix} \mathbf{\Lambda}_1 & \mathbf{0}\\ \mathbf{0} &\mathbf{\Lambda}_2 \end{bmatrix} \begin{bmatrix} \mathbf{W}^T\\ \mathbf{V}^T \end{bmatrix},$$
     
-where $\mathbf{\Lambda}_1$ is a diagonal matrix containing the largest eigenvalues, and $\mathbf{\Lambda}_2$ the smallest eigenvalues, both sorted in descending order. This partition should be chosen such that there is a large gap between the last eigenvalue of $\mathbf{\Lambda}_1$ and the first eigenvalue of $\mathbf{\Lambda}_2$ \[1]. Thus, this partitioning of $\mathbf{Q}$ yields the active subspace matrix $\mathbf{W}$ and the inactive subspace matrix $\mathbf{V}$.
+where $\mathbf{\Lambda}_1$ is a diagonal matrix containing the largest eigenvalues, and $\mathbf{\Lambda}_2$ the smallest eigenvalues, both sorted in descending order. This partition should be chosen such that there is a large gap between the last eigenvalue of $\mathbf{\Lambda}_1$ and the first eigenvalue of $\mathbf{\Lambda}_2$ \[2]. Thus, this partitioning of $\mathbf{Q}$ yields the active subspace matrix $\mathbf{W}$ and the inactive subspace matrix $\mathbf{V}$.
 
 An example of this method in action is given below, where a $n=1$ dimensional approximation is obtained for the $d=7$ temperature probe dataset available from the [equadratures dataset repository](https://github.com/Effective-Quadratures/data-sets). 
 
@@ -60,7 +68,7 @@ print('Ridge Poly. R2 score = %.3f' %eq.datasets.score(y_test,subpoly.get_polyfi
 
 #### Variable Projection
 
-In order to construct the $\mathbf{C}$ matrix, we must first obtain $g(\mathbf{x})$, a polynomial fitted in the full $d$-dimensional space. This becomes problematic as the number of dimensions is increased. For such circumstances, *equadratures* offers *variable projection* \[2]. The non-linear least squares problem
+In order to construct the $\mathbf{C}$ matrix, we must first obtain $g(\mathbf{x})$, a polynomial fitted in the full $d$-dimensional space. This becomes problematic as the number of dimensions is increased. For such circumstances, *equadratures* offers *variable projection* \[3]. The non-linear least squares problem
 
 
 $$\underset{\mathbf{W}, \boldsymbol{\alpha}}{\text{minimize}} \; \; \left\Vert f\left(\mathbf{x}\right)-g_{\boldsymbol{\alpha}}\left(\mathbf{W}^{T} \mathbf{x}\right)\right\Vert _{2}^{2}$$
@@ -68,9 +76,11 @@ $$\underset{\mathbf{W}, \boldsymbol{\alpha}}{\text{minimize}} \; \; \left\Vert f
 is solved by recasting it as a separable non-linear least squares problem. Here, Gauss-Newton optimization used to solve for the polynomial coefficients $\alpha$ and subspace matrix $\mathbf{W}$ together. 
 
 #### References
-\[1]: P. Constantine. "Active subspaces : emerging ideas for dimension reduction in parameter studies". *SIAM Spotlights* (2015). [Book](https://doi.org/10.1137/1.9781611973860). 
+\[1]: P. Seshadri, S. Shahpar, P. Constantine, G. Parks, M. Adams. "Turbomachinery active subspace performance maps". *Journal of Turbomachinery* (2018). [Paper](https://doi.org/10.1115/1.4038839).
 
-\[2]: J. Hokanson and P. Constantine. "Data-Driven Polynomial Ridge Approximation Using Variable Projection". *SIAM Journal of Scientific Computing* (2017). [Paper](https://doi.org/10.1137/17M1117690).
+\[2]: P. Constantine. "Active subspaces : emerging ideas for dimension reduction in parameter studies". *SIAM Spotlights* (2015). [Book](https://doi.org/10.1137/1.9781611973860). 
+
+\[3]: J. Hokanson and P. Constantine. "Data-Driven Polynomial Ridge Approximation Using Variable Projection". *SIAM Journal of Scientific Computing* (2017). [Paper](https://doi.org/10.1137/17M1117690).
 '''
 
 home_text = dcc.Markdown(convert_latex(home_text), dangerously_allow_html=True, style={'text-align':'justify'})

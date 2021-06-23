@@ -11,7 +11,7 @@ Alternatively, if you want to run locally, you must first install the full dash 
 
 ```console
 python -m pip install dash dash_core_components dash_html_components dash_daq dash-extensions==0.0.57
-python -m pip install plotly numpy pandas equadratures>=9.1.0 func-timeout requests>=2.11.1
+python -m pip install plotly numpy pandas equadratures>=9.1.0 func-timeout requests>=2.11.1 whitenoise
 ```
 
 I recommend performing the above in a virtual enviroment such as virtualenv. After installing requirements, the app can be launched with:
