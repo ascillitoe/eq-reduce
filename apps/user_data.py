@@ -712,20 +712,12 @@ def display_summary_plot(results,qoi,twod):
 
         if twod: # 2D summary plot
             # Training
-            if y_train.size > 200: #subsample for speed
-                idx = np.random.choice(y_train.size,100,replace=False)
-                X_train = X_train[idx,:]
-                y_train = y_train[idx]
             u_train = (X_train @ W)
             fig.add_trace(go.Scatter3d(x=u_train[:,0],y=u_train[:,1],z=y_train,mode='markers',name='Training samples',
                 marker=dict(size=10,color="rgb(135, 206, 250)",opacity=0.6,line=dict(color='rgb(0,0,0)',width=1))
             ))
             # Test
             if y_test.size > 0:
-                if y_test.size > 200: #subsample for speed
-                    idx = np.random.choice(y_test.size,100,replace=False)
-                    X_test = X_test[idx,:]
-                    y_test = y_test[idx]
                 u_test = X_test @ W
                 fig.add_trace(go.Scatter3d(x=u_test[:,0],y=u_test[:,1],z=y_test,mode='markers',name='Test samples',
                     marker=dict(size=10,color="rgb(144, 238, 144)",opacity=0.6,line=dict(color='rgb(0,0,0)',width=1))
