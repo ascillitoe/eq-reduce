@@ -56,7 +56,7 @@ X = eq.scaler_minmax().transform(X)
 X_train, X_test, y_train, y_test = eq.datasets.train_test_split(X, y,train=0.8, random_seed = 42)
 N,d = X_train.shape
 
-# Apply active subspace method
+# Obtain subspace
 subdim = 1
 subspace = eq.Subspaces(method='variable-projection',sample_points=X_train,
                             sample_outputs=y_train,polynomial_degree=2, subspace_dimension=subdim)
