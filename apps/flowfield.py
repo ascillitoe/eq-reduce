@@ -358,14 +358,16 @@ def define_bump(n_clicks, children):
                             'index': n_clicks
                             },
                         min=0.05,
-                        max=0.9,
-                        step=0.03541666666,
-                        value=0.5104166666666666,
+                        max=0.89,
+                        step=0.035,
+                        value=0.505,
+#                        step=0.03541666666,
+#                        value=0.5104166666666666,
                         marks={
                             0.05: {'label': '0.05'},
-                            0.9: {'label': '0.9'}
+                            0.89: {'label': '0.89'}
                             },
-                        tooltip = { 'always_visible': True, 'placement': 'bottom' }
+                        tooltip = { 'always_visible': False, 'placement': 'bottom' }
                     )
                 ])
                 ,width=4
@@ -390,7 +392,7 @@ def define_bump(n_clicks, children):
                             0: {},
                             0.01: {'label': '0.01'}
                             },
-                        tooltip = { 'always_visible': True, 'placement': 'bottom' }
+                        tooltip = { 'always_visible': False, 'placement': 'bottom' }
                     ),id=f"slider-amp-wrapper-{n_clicks}")
                 ])
                 ,width=4

@@ -20,7 +20,16 @@ def deform_airfoil(airfoil,xs,amps,surfs):
     #########################################################
     # construct design vector from user specified xs and amps
     #########################################################
-    xs = np.array(xs)
+    # For each element in xs, we need to recover the true value from the rounded input value
+    real = np.arange(0.05,0.9,0.03541666666)
+    xnew = []
+    for x in xs:
+        idx  = np.argmin(np.abs(x-real))
+        xnew.append(real[idx])
+
+    # Convert to numpy
+    xs = np.array(xnew)
+    print(xs)
     amps = np.array(amps)
 
     # find suction and pressure indicies in input arrays

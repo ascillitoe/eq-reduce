@@ -28,7 +28,7 @@ where $g:\mathbb{R}^n \rightarrow \mathbb{R}$ is a low-dimensional non-linear fu
 
 
 <figure style="width:80%">
-<img alt="Sun" src="ridge_figure.png" />
+<img alt="Dimension reducing ridge" src="ridge_figure.png" />
 </figure>
 
 The *equadratures* code uses orthogonal polynomials to represent $g$, and so identifying ridge functions consists of computing coefficients for $g$ as well as identifying a suitable subspace matrix $\mathbf{W}$. Two techniques are avaiable for this in the code, *active subspaces* and *variable projection*.
@@ -94,7 +94,11 @@ Please report any bugs to [ascillitoe@effective-quadratures.org](mailto:ascillit
 final_details = dbc.Alert(dcc.Markdown(final_details),
         dismissable=True,is_open=True,color='info',style={'padding-top':'0.4rem','padding-bottom':'0.0rem'})
 
+homepage = dbc.Container([home_text,final_details])
 
+###################################################################
+# 404 page
+###################################################################
 msg_404 = r'''
 **Oooops** 
 
@@ -126,8 +130,6 @@ footer = html.Div(
 ###################################################################
 # App layout (adopted for all sub-apps/pages)
 ###################################################################
-homepage = dbc.Container([home_text,final_details])
-
 app.layout = html.Div(
     [
         dcc.Location(id='url', refresh=True),
