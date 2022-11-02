@@ -1,9 +1,9 @@
-dash
+dash<2.0
 dash_core_components
 dash_html_components
-dash_bootstrap_components
+dash_bootstrap_components<1.0
 dash_daq
-dash-extensions
+dash-extensions<0.0.58
 flask_caching
 plotly
 numpy
